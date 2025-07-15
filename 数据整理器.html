@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>货代数据转换器-智能重量计算版</title>
+    <style>
+        body { font-family: 'Arial', Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+        h1 { color: #2c3e50; text-align: center; }
+        .container { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        textarea { width: 100%; height: 150px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; }
+        button { background: #3498db; color: white; border: none; padding: 12px 20px; margin: 15px 0; width: 100%; border-radius: 4px; cursor: pointer; }
+        .result-box { background: #f8f9fa; padding: 15px; border-radius: 4px; border-left: 4px solid #3498db; margin-top: 20px; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>✈️ 货代数据转换器</h1>
+    <div class="container">
+        <textarea id="input" placeholder="粘贴货物信息，例如：
+42件 58*40*31cm @13.5kg/件 to WAW
+或：
+16ctns 总重93.55kg 飞FRA"></textarea>
+        <button onclick="convert()">一键转换</button>
+        <div id="result" class="result-box">转换结果将显示在这里...</div>
+    </div>
+
+    <script>
+        function convert() {
+            const text = document.getElementById('input').value.trim();
+            let output = "";
+            
+            // 1. 提取机场代码
+            const airportMatch = text.match(/(?:to|TO|POD:|AOL:|Delivery:|Destination:|飞|目的地)\s*([A-Z]{3})\b/i);
+            const airport = airportMatch ? airportMatch[1] : "???";
+
+            // 2. 智能数据提取（支持单件重和总重识别）
+            const casesMatch = text.match(/(\d+)\s*(?:crts?|ctns?|plts?|pkgs?|boxes?|cases?|件|箱|pallets?|carts?|Cartons?|packages?|pcs|Palls?|pal?|colis?|rolls?)/i);
+            const singleWeightMatch = text.match(/(\d+[,.]?\d*)\s*(?:kg|kgs|千克|公斤)\s*\/?\s*(?:ctn|件|箱)/i);
+            const totalWeightMatch = text.match(/(\d+[,.]?\d*)\s*(?:kg|kgs|千克|公斤)(?!\s*\/)/i);
+            const cbmMatch = text.match(/(\d+[,.]?\d*)\s*(?:cbm|立方米|m³)/i);
+            const sizeMatch = text.match(/(\d+)\s*[*x×X]\s*(\d+)\s*[*x×X]\s*(\d+)/i);
+
+            if (casesMatch && (singleWeightMatch || totalWeightMatch)) {
+                const cases = casesMatch[1];
+                let weight;
+                let weightNote = "";
+                
+                // 重量计算逻辑（新增核心判断）
+                if (totalWeightMatch) {
+                    weight = parseFloat(totalWeightMatch[1].replace(',', '.'));
+                
+                } else {
+                    const singleWeight = parseFloat(singleWeightMatch[1].replace(',', '.'));
+                    weight = singleWeight * cases;
+                    weightNote = `(单件${singleWeight}kg×${cases}件)`;
+                }
+
+                // 体积计算
+                let cbm = cbmMatch ? parseFloat(cbmMatch[1].replace(',', '.')).toFixed(2) : 
+                         sizeMatch ? ((sizeMatch[1] * sizeMatch[2] * sizeMatch[3] * cases / 1000000).toFixed(2)) : null;
+
+                
+
+                // 3. 标准化输出
+                output += `${airport} / ${cases}pcs / ${weight.toFixed(1)}kgs${weightNote} / ${cbm || '?'}cbm\n`;
+                if (sizeMatch) {
+                    const [_, l, w, h] = sizeMatch;
+                output += `${l}×${w}×${h}cm, `;
+                    
+                }
+                if (cbm) output += `1:${(weight / cbm).toFixed(0)}`;
+            } else {
+                output = "数据识别失败，请检查是否包含：\n- 件数（如16ctns/42件）\n- 重量（如93.5kg或13.5kg/件）\n- 目的地（如to FRA）";
+            }
+            
+            document.getElementById('result').textContent = output;
+        }
+    </script>
+</body>
+</html>
