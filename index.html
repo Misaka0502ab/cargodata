@@ -48,7 +48,7 @@
             const airport = airportMatch ? airportMatch[1] : "???";
 
             // 2. 智能数据提取（支持单件重和总重识别）
-            const casesMatch = text.match(/(\d+)\s*(?:crts?|ctns?|plts?|pkgs?|boxes?|cases?|件|箱|pallets?|tents?|x Pallets?|xPallets?|carts?|karts?|PALETY?|Cartons?|packages?|Crates?|crate?|pcs|Palls?|pal?|colis?|rolls?|pieces?)/i);
+            const casesMatch = text.match(/(\d+)\s*(?:crts?|ctns?|plts?|pkgs?|boxes?|cases?|件|箱|pallets?|tents?|x Pallets?|xPallets?|carts?|karts?|PALETY?|Cartons?|packages?|Crates?|crate?|pcs|Palls?|pal?|colis?|collis?|rolls?|pieces?)/i);
             const singleWeightMatch = text.match(/(\d+[,.]?\d*)\s*(?:kg|kgs|千克|公斤)\s*\/?\s*(?:ctn|件|箱)/i);
             const totalWeightMatch = text.match(/(\d+[,.]?\d*)\s*(?:kg|kgs|千克|公斤)(?!\s*\/)/i);
             const cbmMatch = text.match(/(\d+[,.]?\d*)\s*(?:cbm|立方米|m³|m3|cms)/i);
@@ -92,6 +92,7 @@
     </script>
 </body>
 </html>
+
 
 
 
