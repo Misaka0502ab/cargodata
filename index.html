@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html>
 <head>
-
-    <head>
     <!-- 标准ICO格式 -->
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     
@@ -15,7 +13,6 @@
     
     <!-- 网页主题色（可选） -->
     <meta name="theme-color" content="#ffffff">
-    </head>
     
     <title>货代数据转换器-智能重量计算版</title>
     <style>
@@ -23,7 +20,43 @@
         h1 { color: #2c3e50; text-align: center; }
         .container { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         textarea { width: 100%; height: 150px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; }
-        button { background: #3498db; color: white; border: none; padding: 12px 20px; margin: 15px 0; width: 100%; border-radius: 4px; cursor: pointer; }
+        
+        /* 快捷按钮容器样式 */
+        .shortcut-btn-group {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0 10px 0; /* 调整间距，和主按钮区分开 */
+        }
+        .shortcut-btn {
+            background: #2ecc71;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            flex: 1; /* 快捷按钮等分宽度 */
+            font-size: 14px;
+        }
+        .shortcut-btn:hover {
+            background: #27ae60; /* 悬停效果，提升交互体验 */
+        }
+        
+        /* 主按钮样式 */
+        .main-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+            margin: 5px 0 0 0;
+        }
+        .main-btn:hover {
+            background: #2980b9; /* 悬停效果 */
+        }
+        
         .result-box { background: #f8f9fa; padding: 15px; border-radius: 4px; border-left: 4px solid #3498db; margin-top: 20px; white-space: pre-wrap; }
     </style>
 </head>
@@ -34,11 +67,29 @@
 42件 58*40*31cm @13.5kg/件 to WAW
 或：
 16ctns 总重93.55kg 飞FRA"></textarea>
-        <button onclick="convert()">一键转换</button>
+        
+        <!-- 快捷按钮区域（单独一行） -->
+        <div class="shortcut-btn-group">
+            <button class="shortcut-btn" onclick="fillAirport('FRA')">FRA</button>
+            <button class="shortcut-btn" onclick="fillAirport('WAW')">WAW</button>
+        </div>
+        
+        <!-- 一键转换按钮（单独一行） -->
+        <button class="main-btn" onclick="convert()">一键转换</button>
+        
         <div id="result" class="result-box">转换结果将显示在这里...</div>
     </div>
 
     <script>
+        // 快捷填充机场代码的函数
+        function fillAirport(airportCode) {
+            const inputElement = document.getElementById('input');
+            // 直接替换输入框内容为 TO+机场代码
+            inputElement.value = `TO${airportCode}`;
+            // 聚焦输入框，提升用户体验
+            inputElement.focus();
+        }
+
         function convert() {
             const text = document.getElementById('input').value.trim();
             let output = "";
@@ -59,7 +110,7 @@
                 let weight;
                 let weightNote = "";
                 
-                // 重量计算逻辑（新增核心判断）
+                // 重量计算逻辑
                 if (totalWeightMatch) {
                     weight = parseFloat(totalWeightMatch[1].replace(',', '.'));
                 
@@ -73,14 +124,11 @@
                 let cbm = cbmMatch ? parseFloat(cbmMatch[1].replace(',', '.')).toFixed(2) : 
                          sizeMatch ? ((sizeMatch[1] * sizeMatch[2] * sizeMatch[3] * cases / 1000000).toFixed(2)) : null;
 
-                
-
-                // 3. 标准化输出
+                // 标准化输出
                 output += `${airport} / ${cases}pcs / ${weight.toFixed(1)}kgs${weightNote} / ${cbm || '?'}cbm\n`;
                 if (sizeMatch) {
                     const [_, l, w, h] = sizeMatch;
-                output += `${l}×${w}×${h}cm, `;
-                    
+                    output += `${l}×${w}×${h}cm, `;
                 }
                 if (cbm) output += `1:${(weight / cbm).toFixed(0)}`;
             } else {
@@ -92,9 +140,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
-
