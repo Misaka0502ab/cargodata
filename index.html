@@ -82,8 +82,8 @@
         // 快捷填充机场代码的函数
         function fillAirport(airportCode) {
             const inputElement = document.getElementById('input');
-            // 直接替换输入框内容为 TO+机场代码
-            inputElement.value = `TO${airportCode}`;
+            // 关键修改：在TO机场代码后添加换行符\n
+            inputElement.value = `TO${airportCode}\n`;
             // 聚焦输入框，提升用户体验
             inputElement.focus();
         }
