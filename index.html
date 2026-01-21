@@ -167,26 +167,29 @@
                 }
             }
 
-            // 2. 提取重量（区分“总重”和“单件重”）
-            let totalWeight = null; // 独立的总重（单独一行的重量）
-            let singleWeight = null; // 单件重（和尺寸/件数在同一行的重量，如13.5kg/件）
+            // 2. 提取重量（重构规则：兼容更多货代重量格式）
+            let totalWeight = null; // 总重（所有非单件重的重量）
+            let singleWeight = null; // 单件重（带/件/箱标识的重量）
             
-            // 匹配独立的总重行（整行只有重量，无“/件”“/箱”等标识）
-            const totalWeightRegex = /^(\d+\.?\d*)\s*(?:kg|kgs|千克|公斤)\s*$/i;
-            // 匹配单件重（包含“/件”“/箱”等标识，或和尺寸在同一行）
+            // 匹配单件重（带/件/箱标识）- 优先级最低
             const singleWeightRegex = /(\d+\.?\d*)\s*(?:kg|kgs|千克|公斤)\s*\/?\s*(?:ctn|件|箱)/i;
+            // 匹配总重（兼容：纯重量行、带gross weight/net weight等前缀的重量行）
+            const totalWeightRegex = /(\d+\.?\d*)\s*(?:kg|kgs|千克|公斤)/i;
             
             for (let line of lines) {
-                // 优先识别独立总重
-                const totalMatch = line.match(totalWeightRegex);
-                if (totalMatch) {
-                    totalWeight = parseFloat(totalMatch[1]);
-                    continue; // 找到总重后跳过该行的单件重匹配
-                }
-                // 识别单件重
+                // 先检查是否是单件重
                 const singleMatch = line.match(singleWeightRegex);
                 if (singleMatch && !singleWeight) {
                     singleWeight = parseFloat(singleMatch[1]);
+                    continue; // 单件重不参与总重匹配
+                }
+                
+                // 再匹配总重（只要包含“数字+kg”就提取，不管前缀）
+                if (!totalWeight) { // 只提取第一个匹配到的总重
+                    const totalMatch = line.match(totalWeightRegex);
+                    if (totalMatch) {
+                        totalWeight = parseFloat(totalMatch[1]);
+                    }
                 }
             }
 
@@ -202,7 +205,7 @@
                 }
             }
 
-            // 4. 修复2：新增直接识别CBM的逻辑（优先读取现成的CBM值）
+            // 4. 新增直接识别CBM的逻辑（优先读取现成的CBM值）
             let directCBM = 0;
             const cbmRegex = /(\d+\.?\d*)\s*(?:cbm|CBM|立方米|方)/i;
             for (let line of lines) {
@@ -240,13 +243,13 @@
             // 确定最终件数：优先关键词件数，无则用尺寸统计的件数（至少1）
             const finalCases = cases > 1 ? cases : (totalCasesFromSize > 0 ? totalCasesFromSize : 1);
             
-            // 修复3：重量计算逻辑（核心修改）
+            // 重量计算逻辑：优先总重，无则用单件重×件数
             let finalWeight = null;
             if (totalWeight) {
-                // 有独立总重 → 直接使用，不乘件数
+                // 有总重 → 直接使用，不乘件数
                 finalWeight = totalWeight;
             } else if (singleWeight) {
-                // 只有单件重 → 乘以件数（仅这种情况相乘）
+                // 只有单件重 → 乘以件数
                 finalWeight = singleWeight * finalCases;
             }
 
