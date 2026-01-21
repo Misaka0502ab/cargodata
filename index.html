@@ -148,8 +148,11 @@
             const text = document.getElementById('input').value.trim();
             let output = "";
             
-            // 预处理文本：替换逗号小数点为点
-            const cleanedText = text.replace(/,/g, '.');
+            // 修复1：优化小数点替换 - 匹配“数字,数字”格式的逗号（欧洲小数点）
+            // 先替换“数字,数字”中的逗号为点，再替换其他多余逗号
+            let cleanedText = text.replace(/(\d+),(\d+)/g, '$1.$2'); // 处理 0,73 → 0.73
+            cleanedText = cleanedText.replace(/,/g, ''); // 移除剩余的逗号
+            
             // 按行拆分文本，过滤空行
             const lines = cleanedText.split('\n').map(line => line.trim()).filter(line => line);
             
@@ -164,21 +167,26 @@
                 }
             }
 
-            // 2. 提取重量（总重优先）
-            let weight = null;
-            const totalWeightRegex = /(\d+\.?\d*)\s*(?:kg|kgs|千克|公斤)(?!\s*\/)/i;
+            // 2. 提取重量（区分“总重”和“单件重”）
+            let totalWeight = null; // 独立的总重（单独一行的重量）
+            let singleWeight = null; // 单件重（和尺寸/件数在同一行的重量，如13.5kg/件）
+            
+            // 匹配独立的总重行（整行只有重量，无“/件”“/箱”等标识）
+            const totalWeightRegex = /^(\d+\.?\d*)\s*(?:kg|kgs|千克|公斤)\s*$/i;
+            // 匹配单件重（包含“/件”“/箱”等标识，或和尺寸在同一行）
             const singleWeightRegex = /(\d+\.?\d*)\s*(?:kg|kgs|千克|公斤)\s*\/?\s*(?:ctn|件|箱)/i;
             
             for (let line of lines) {
+                // 优先识别独立总重
                 const totalMatch = line.match(totalWeightRegex);
                 if (totalMatch) {
-                    weight = parseFloat(totalMatch[1]);
-                    break;
+                    totalWeight = parseFloat(totalMatch[1]);
+                    continue; // 找到总重后跳过该行的单件重匹配
                 }
+                // 识别单件重
                 const singleMatch = line.match(singleWeightRegex);
-                if (singleMatch) {
-                    weight = parseFloat(singleMatch[1]);
-                    break;
+                if (singleMatch && !singleWeight) {
+                    singleWeight = parseFloat(singleMatch[1]);
                 }
             }
 
@@ -194,42 +202,62 @@
                 }
             }
 
-            // 4. 解析尺寸行，计算总件数（无关键词时）和总CBM
+            // 4. 修复2：新增直接识别CBM的逻辑（优先读取现成的CBM值）
+            let directCBM = 0;
+            const cbmRegex = /(\d+\.?\d*)\s*(?:cbm|CBM|立方米|方)/i;
+            for (let line of lines) {
+                const match = line.match(cbmRegex);
+                if (match) {
+                    directCBM = parseFloat(match[1]);
+                    break;
+                }
+            }
+
+            // 5. 解析尺寸行，计算总件数（无关键词时）和总CBM
             let sizeLinesInfo = [];
             let totalCasesFromSize = 0;
-            let totalCBM = 0;
+            let totalCBM = directCBM; // 优先使用直接识别的CBM，无则计算尺寸
             let sizeOutput = "";
             
             // 匹配尺寸行的正则（包含数字×数字×数字+单位）
             const sizeLineRegex = /\d+\.?\d*\s*[*x×X]\s*\d+\.?\d*\s*[*x×X]\s*\d+\.?\d*\s*(?:mm|cm|m|MM|CM|M)/i;
             
-            for (let line of lines) {
-                if (sizeLineRegex.test(line)) {
-                    const sizeInfo = parseSizeLine(line);
-                    sizeLinesInfo.push(sizeInfo);
-                    totalCasesFromSize += sizeInfo.multiple;
-                    // 累加该行CBM
-                    totalCBM += calculateSizeToCBM(sizeInfo.sizeValues, sizeInfo.unitType, sizeInfo.multiple);
-                    // 拼接尺寸输出（保留原始格式）
-                    sizeOutput += sizeInfo.originalLine + "\n";
+            // 如果没有直接识别到CBM，才通过尺寸计算
+            if (directCBM === 0) {
+                for (let line of lines) {
+                    if (sizeLineRegex.test(line)) {
+                        const sizeInfo = parseSizeLine(line);
+                        sizeLinesInfo.push(sizeInfo);
+                        totalCasesFromSize += sizeInfo.multiple;
+                        // 累加该行CBM
+                        totalCBM += calculateSizeToCBM(sizeInfo.sizeValues, sizeInfo.unitType, sizeInfo.multiple);
+                        // 拼接尺寸输出（保留原始格式）
+                        sizeOutput += sizeInfo.originalLine + "\n";
+                    }
                 }
             }
 
             // 确定最终件数：优先关键词件数，无则用尺寸统计的件数（至少1）
             const finalCases = cases > 1 ? cases : (totalCasesFromSize > 0 ? totalCasesFromSize : 1);
-            // 单件重转总重（如果是单件重且有件数）
-            if (weight && cases === 1 && totalCasesFromSize > 1) {
-                weight = weight * totalCasesFromSize;
+            
+            // 修复3：重量计算逻辑（核心修改）
+            let finalWeight = null;
+            if (totalWeight) {
+                // 有独立总重 → 直接使用，不乘件数
+                finalWeight = totalWeight;
+            } else if (singleWeight) {
+                // 只有单件重 → 乘以件数（仅这种情况相乘）
+                finalWeight = singleWeight * finalCases;
             }
 
-            // 5. 计算最终CBM（保留2位小数）
+            // 6. 计算最终CBM（保留2位小数）
             const finalCBM = totalCBM.toFixed(2);
             // 密度比
-            const densityRatio = weight ? Math.round(weight / parseFloat(finalCBM)) : "";
+            const densityRatio = finalWeight ? Math.round(finalWeight / parseFloat(finalCBM)) : "";
 
-            // 6. 拼接输出
-            if (weight) {
-                output += `${airport} / ${finalCases}pcs / ${weight.toFixed(1)}kgs / ${finalCBM}cbm\n`;
+            // 7. 拼接输出
+            if (finalWeight) {
+                output += `${airport} / ${finalCases}pcs / ${finalWeight.toFixed(1)}kgs / ${finalCBM}cbm\n`;
             } else {
                 output += `${airport} / ${finalCases}pcs / ?kgs / ${finalCBM}cbm\n`;
             }
@@ -238,11 +266,11 @@
             if (sizeOutput) {
                 output += sizeOutput.trim();
                 // 添加密度比（如果有重量）
-                if (weight) {
+                if (finalWeight) {
                     output += `\n1:${densityRatio}`;
                 }
-            } else if (!weight) {
-                output = "数据识别失败，请检查是否包含：\n- 重量（如93.5kg或13.5kg/件）\n- 尺寸（如1700*385*100mm）\n- 目的地（如to FRA）";
+            } else if (!finalWeight && directCBM === 0) {
+                output = "数据识别失败，请检查是否包含：\n- 重量（如93.5kg或13.5kg/件）\n- 尺寸（如1700*385*100mm）或CBM（如0.73cbm）\n- 目的地（如to FRA）";
             }
             
             document.getElementById('result').textContent = output;
