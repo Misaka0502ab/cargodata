@@ -245,8 +245,8 @@
 
             // 5. 解析尺寸行，获取单件尺寸信息
             let sizeLinesInfo = [];
-            let singleSizeCBM = 0; // 单件体积
-            let sizeLineDisplay = ""; // 用于显示的尺寸行
+            let singleSizeCBM = 0; // 单件体积（用于计算总CBM）
+            let allSizeLines = []; // 存储所有尺寸行的原始文本
             
             // 如果没有直接识别到CBM，才通过尺寸计算
             if (directCBM === 0) {
@@ -256,11 +256,12 @@
                         const sizeInfo = parseSizeLine(line);
                         if (sizeInfo.sizeValues) {
                             sizeLinesInfo.push(sizeInfo);
+                            // 保存所有尺寸行的原始文本
+                            allSizeLines.push(sizeInfo.originalLine);
+                            
                             // 计算单件体积（第一个有效尺寸行）
                             if (singleSizeCBM === 0) {
                                 singleSizeCBM = calculateSizeToCBM(sizeInfo.sizeValues, sizeInfo.unitType);
-                                // 只保留原始尺寸格式用于显示
-                                sizeLineDisplay = sizeInfo.originalLine.replace(/[*xX]\d+\s*$/, '').trim();
                             }
                         }
                     }
@@ -311,15 +312,16 @@
                 output += `${airport} / ${finalCases}pcs / ?kgs / ${finalCBM}cbm`;
             }
             
-            // 添加尺寸信息（如果有）
-            if (sizeLineDisplay) {
-                output += `\n${sizeLineDisplay}`;
+            // 添加所有尺寸信息（如果有多个尺寸）
+            if (allSizeLines.length > 0) {
+                // 用中文逗号连接所有尺寸行
+                output += `\n${allSizeLines.join('，')}`;
             }
             
             // 添加密度比（如果有）
             if (densityRatio) {
-                if (sizeLineDisplay) {
-                    output += `，1:${densityRatio}`;
+                if (allSizeLines.length > 0) {
+                    output += `\n1:${densityRatio}`;
                 } else {
                     output += `\n1:${densityRatio}`;
                 }
