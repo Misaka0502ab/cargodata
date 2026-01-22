@@ -43,7 +43,7 @@
         
         /* 主按钮样式 */
         .main-btn {
-            background: #3498db;
+            background: #3498db; /* 改回好看的蓝色 */
             color: white;
             border: none;
             padding: 12px 20px;
@@ -52,12 +52,28 @@
             width: 100%;
             font-size: 16px;
             margin: 5px 0 0 0;
+            transition: background 0.3s;
         }
         .main-btn:hover {
             background: #2980b9; /* 悬停效果 */
         }
+        .main-btn.copied {
+            background: #2ecc71; /* 复制成功时的颜色 */
+        }
         
-        .result-box { background: #f8f9fa; padding: 15px; border-radius: 4px; border-left: 4px solid #3498db; margin-top: 20px; white-space: pre-wrap; }
+        .result-box { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 4px; 
+            border-left: 4px solid #3498db; 
+            margin-top: 20px; 
+            white-space: pre-wrap;
+            min-height: 60px; /* 确保有足够的高度显示结果 */
+        }
+        .result-placeholder {
+            color: #999;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -72,10 +88,12 @@
             <button class="shortcut-btn" onclick="fillAirport('WAW')">WAW</button>
         </div>
         
-        <!-- 一键转换按钮（单独一行） -->
-        <button class="main-btn" onclick="convert()">一键转换</button>
+        <!-- 一键复制按钮（单独一行） -->
+        <button class="main-btn" onclick="copyResult()" id="copyBtn">一键复制</button>
         
-        <div id="result" class="result-box">转换结果将显示在这里...</div>
+        <div id="result" class="result-box">
+            <span class="result-placeholder">输入数据后会自动转换...</span>
+        </div>
     </div>
 
     <script>
@@ -86,16 +104,21 @@
             inputElement.value = `TO${airportCode}\n`;
             // 聚焦输入框，提升用户体验
             inputElement.focus();
+            // 触发实时转换
+            convert();
         }
 
         // 新增：解析尺寸行，返回尺寸信息和该行的件数
         function parseSizeLine(line) {
+            // 首先提取重量（如果有），避免干扰尺寸解析
+            const weightRemovedLine = line.replace(/(\d+\.?\d*)\s*(?:kg|kgs|千克|公斤)/gi, '').trim();
+            
             // 匹配尺寸后带的倍数（*3/X2/x5等）
-            const multipleMatch = line.match(/[*xX](\d+)\s*$/) || [null, 1];
+            const multipleMatch = weightRemovedLine.match(/[*xX](\d+)\s*$/) || [null, 1];
             const multiple = parseInt(multipleMatch[1]) || 1;
             
             // 提取纯尺寸部分（去掉末尾的倍数）
-            const pureSizeLine = line.replace(/[*xX]\d+\s*$/, '').trim();
+            const pureSizeLine = weightRemovedLine.replace(/[*xX]\d+\s*$/, '').trim();
             
             // 增强的尺寸匹配：支持更灵活的格式，如"1700*385*100mm"、"1.7×0.385×0.1m"等
             const sizeMatch = pureSizeLine.match(/(\d+\.?\d*)\s*[*x×X]\s*(\d+\.?\d*)\s*[*x×X]\s*(\d+\.?\d*)/i);
@@ -126,6 +149,38 @@
                 unitType: unitType,
                 multiple: multiple // 该行的倍数（件数）
             };
+        }
+
+        // 新增：清理尺寸行，只保留尺寸和倍数
+        function cleanSizeLine(line) {
+            // 先移除重量信息
+            const lineWithoutWeight = line.replace(/(\d+\.?\d*)\s*(?:kg|kgs|千克|公斤)/gi, '').trim();
+            
+            // 提取倍数
+            const multipleMatch = lineWithoutWeight.match(/[*xX](\d+)\s*$/) || [null, 1];
+            const multiple = parseInt(multipleMatch[1]) || 1;
+            
+            // 匹配尺寸部分（数字x数字x数字+单位）
+            const sizeMatch = lineWithoutWeight.match(/(\d+\.?\d*)\s*[*x×X]\s*(\d+\.?\d*)\s*[*x×X]\s*(\d+\.?\d*)\s*(mm|cm|m|MM|CM|M)?/i);
+            
+            if (!sizeMatch) {
+                return lineWithoutWeight; // 如果没有匹配到尺寸，返回移除重量后的行
+            }
+            
+            // 构建干净的尺寸行
+            let cleanLine = `${sizeMatch[1]}*${sizeMatch[2]}*${sizeMatch[3]}`;
+            
+            // 如果有单位，添加单位
+            if (sizeMatch[4]) {
+                cleanLine += sizeMatch[4].toLowerCase();
+            }
+            
+            // 如果有倍数且大于1，添加倍数
+            if (multiple > 1) {
+                cleanLine += `*${multiple}`;
+            }
+            
+            return cleanLine;
         }
 
         // 修复：体积单位换算核心函数
@@ -161,8 +216,17 @@
             return volumeM3;
         }
 
+        // 修改：实时转换函数
         function convert() {
             const text = document.getElementById('input').value.trim();
+            const resultElement = document.getElementById('result');
+            
+            // 如果输入为空，显示提示信息
+            if (!text) {
+                resultElement.innerHTML = '<span class="result-placeholder">输入数据后会自动转换...</span>';
+                return;
+            }
+            
             let output = "";
             
             // 修复1：优化小数点替换 - 匹配"数字,数字"格式的逗号（欧洲小数点）
@@ -193,6 +257,7 @@
             // 匹配总重（兼容：纯重量行、带gross weight/net weight等前缀的重量行）
             const totalWeightRegex = /(\d+\.?\d*)\s*(?:kg|kgs|千克|公斤)/i;
             
+            // 先处理重量，避免被尺寸行干扰
             for (let line of lines) {
                 // 先检查是否是单件重
                 const singleMatch = line.match(singleWeightRegex);
@@ -247,6 +312,7 @@
             let sizeLinesInfo = [];
             let singleSizeCBM = 0; // 单件体积（用于计算总CBM）
             let allSizeLines = []; // 存储所有尺寸行的原始文本
+            let allCleanSizeLines = []; // 存储清理后的尺寸行
             
             // 如果没有直接识别到CBM，才通过尺寸计算
             if (directCBM === 0) {
@@ -258,6 +324,10 @@
                             sizeLinesInfo.push(sizeInfo);
                             // 保存所有尺寸行的原始文本
                             allSizeLines.push(sizeInfo.originalLine);
+                            
+                            // 清理尺寸行并保存
+                            const cleanLine = cleanSizeLine(line);
+                            allCleanSizeLines.push(cleanLine);
                             
                             // 计算单件体积（第一个有效尺寸行）
                             if (singleSizeCBM === 0) {
@@ -287,8 +357,17 @@
                 }
             }
             
-            // 确定最终件数
-            const finalCases = cases > 0 ? cases : (sizeLinesInfo.reduce((sum, info) => sum + info.multiple, 0) || 1);
+            // 确定最终件数 - 关键修复：优先使用尺寸行中的倍数
+            let finalCases = 0;
+            if (cases > 0) {
+                finalCases = cases; // 优先使用识别的件数关键词
+            } else if (sizeLinesInfo.length > 0) {
+                // 使用所有尺寸行中的倍数总和
+                finalCases = sizeLinesInfo.reduce((sum, info) => sum + info.multiple, 0);
+            }
+            
+            // 如果仍然没有件数，默认为1
+            if (finalCases === 0) finalCases = 1;
             
             // 重量计算逻辑：优先总重，无则用单件重×件数
             let finalWeight = null;
@@ -312,15 +391,15 @@
                 output += `${airport} / ${finalCases}pcs / ?kgs / ${finalCBM}cbm`;
             }
             
-            // 添加所有尺寸信息（如果有多个尺寸）
-            if (allSizeLines.length > 0) {
-                // 用中文逗号连接所有尺寸行
-                output += `\n${allSizeLines.join('，')}`;
+            // 添加所有尺寸信息（如果有多个尺寸）- 使用清理后的尺寸行
+            if (allCleanSizeLines.length > 0) {
+                // 用中文逗号连接所有清理后的尺寸行
+                output += `\n${allCleanSizeLines.join('，')}`;
             }
             
             // 添加密度比（如果有）
             if (densityRatio) {
-                if (allSizeLines.length > 0) {
+                if (allCleanSizeLines.length > 0) {
                     output += `\n1:${densityRatio}`;
                 } else {
                     output += `\n1:${densityRatio}`;
@@ -332,8 +411,73 @@
                 output = "数据识别失败，请检查是否包含：\n- 重量（如93.5kg或13.5kg/件）\n- 尺寸（如29*17*19CM）或CBM（如0.75cbm）\n- 目的地（如to FRA）\n- 件数（如total 80 CTN）\n\n支持的单位：mm, cm, m";
             }
             
-            document.getElementById('result').textContent = output;
+            resultElement.textContent = output;
         }
+
+        // 新增：一键复制函数
+        function copyResult() {
+            const resultElement = document.getElementById('result');
+            const copyBtn = document.getElementById('copyBtn');
+            
+            // 获取纯文本结果
+            const textToCopy = resultElement.textContent;
+            
+            // 检查是否有有效内容（不是提示信息）
+            if (textToCopy.includes("输入数据后会自动转换") || textToCopy.includes("数据识别失败")) {
+                return; // 不复制提示信息
+            }
+            
+            // 使用现代剪贴板API
+            navigator.clipboard.writeText(textToCopy)
+                .then(() => {
+                    // 显示复制成功反馈
+                    const originalText = copyBtn.textContent;
+                    copyBtn.textContent = "已复制 ✓";
+                    copyBtn.classList.add('copied');
+                    
+                    // 2秒后恢复原状
+                    setTimeout(() => {
+                        copyBtn.textContent = originalText;
+                        copyBtn.classList.remove('copied');
+                    }, 2000);
+                })
+                .catch(err => {
+                    // 备用方案：使用传统方法
+                    const textArea = document.createElement('textarea');
+                    textArea.value = textToCopy;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    
+                    // 显示复制成功反馈
+                    const originalText = copyBtn.textContent;
+                    copyBtn.textContent = "已复制 ✓";
+                    copyBtn.classList.add('copied');
+                    
+                    setTimeout(() => {
+                        copyBtn.textContent = originalText;
+                        copyBtn.classList.remove('copied');
+                    }, 2000);
+                });
+        }
+
+        // 新增：实时转换监听
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputElement = document.getElementById('input');
+            
+            // 监听输入事件，实现实时转换
+            inputElement.addEventListener('input', convert);
+            
+            // 监听粘贴事件，粘贴后自动转换
+            inputElement.addEventListener('paste', function() {
+                // 用setTimeout确保粘贴完成后再转换
+                setTimeout(convert, 10);
+            });
+            
+            // 初始转换（如果有内容）
+            convert();
+        });
     </script>
 </body>
 </html>
