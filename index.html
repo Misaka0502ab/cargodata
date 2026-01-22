@@ -63,7 +63,7 @@
 <body>
     <h1>✈️ 货代数据转换器</h1>
     <div class="container">
-        <!-- 仅修改这里的placeholder为“棒棒！” -->
+        <!-- 仅修改这里的placeholder为"棒棒！" -->
         <textarea id="input" placeholder="棒棒！"></textarea>
         
         <!-- 快捷按钮区域（单独一行） -->
@@ -97,59 +97,76 @@
             // 提取纯尺寸部分（去掉末尾的倍数）
             const pureSizeLine = line.replace(/[*xX]\d+\s*$/, '').trim();
             
-            // 匹配尺寸数值（支持小数）
+            // 增强的尺寸匹配：支持更灵活的格式，如"1700*385*100mm"、"1.7×0.385×0.1m"等
             const sizeMatch = pureSizeLine.match(/(\d+\.?\d*)\s*[*x×X]\s*(\d+\.?\d*)\s*[*x×X]\s*(\d+\.?\d*)/i);
             
-            // 识别单位
-            let unitType = "cm";
-            if (/[mM][mM]\b/.test(pureSizeLine)) unitType = "mm";
-            else if (/[mM]\b(?!M)/.test(pureSizeLine)) unitType = "m";
+            if (!sizeMatch) {
+                return {
+                    originalLine: line.trim(),
+                    pureSizeLine: pureSizeLine,
+                    sizeValues: null,
+                    unitType: "cm",
+                    multiple: multiple
+                };
+            }
+            
+            // 识别单位（更精确的匹配）
+            let unitType = "cm"; // 默认单位
+            const unitMatch = pureSizeLine.toLowerCase().match(/(mm|cm|m|meter|metre)\b/);
+            if (unitMatch) {
+                if (unitMatch[1] === 'mm' || unitMatch[1] === 'millimeter') unitType = "mm";
+                else if (unitMatch[1] === 'm' || unitMatch[1] === 'meter' || unitMatch[1] === 'metre') unitType = "m";
+                else unitType = "cm"; // cm或默认
+            }
             
             return {
                 originalLine: line.trim(), // 原始尺寸行（保留格式）
                 pureSizeLine: pureSizeLine,
-                sizeValues: sizeMatch ? [sizeMatch[1], sizeMatch[2], sizeMatch[3]] : null,
+                sizeValues: [sizeMatch[1], sizeMatch[2], sizeMatch[3]],
                 unitType: unitType,
                 multiple: multiple // 该行的倍数（件数）
             };
         }
 
-        // 新增：体积单位换算核心函数
-        function calculateSizeToCBM(sizeValues, unitType, multiple) {
+        // 修复：体积单位换算核心函数
+        function calculateSizeToCBM(sizeValues, unitType) {
             if (!sizeValues) return 0;
             
             let l = parseFloat(sizeValues[0]);
             let w = parseFloat(sizeValues[1]);
             let h = parseFloat(sizeValues[2]);
             
-            // 转换为厘米
-            switch (unitType) {
+            // 根据单位转换为米（因为CBM是立方米）
+            switch (unitType.toLowerCase()) {
                 case "mm":
-                    l = l / 10;
-                    w = w / 10;
-                    h = h / 10;
-                    break;
-                case "m":
-                    l = l * 100;
-                    w = w * 100;
-                    h = h * 100;
+                    // 毫米转米：除以1000
+                    l = l / 1000;
+                    w = w / 1000;
+                    h = h / 1000;
                     break;
                 case "cm":
+                    // 厘米转米：除以100
+                    l = l / 100;
+                    w = w / 100;
+                    h = h / 100;
+                    break;
+                case "m":
                 default:
+                    // 已经是米，无需转换
                     break;
             }
             
-            // 计算该行体积（cm³）并换算成CBM，乘以倍数
-            const volumeCm3 = l * w * h * multiple;
-            return volumeCm3 / 1000000;
+            // 计算单件体积（立方米）
+            const volumeM3 = l * w * h;
+            return volumeM3;
         }
 
         function convert() {
             const text = document.getElementById('input').value.trim();
             let output = "";
             
-            // 修复1：优化小数点替换 - 匹配“数字,数字”格式的逗号（欧洲小数点）
-            // 先替换“数字,数字”中的逗号为点，再替换其他多余逗号
+            // 修复1：优化小数点替换 - 匹配"数字,数字"格式的逗号（欧洲小数点）
+            // 先替换"数字,数字"中的逗号为点，再替换其他多余逗号
             let cleanedText = text.replace(/(\d+),(\d+)/g, '$1.$2'); // 处理 0,73 → 0.73
             cleanedText = cleanedText.replace(/,/g, ''); // 移除剩余的逗号
             
@@ -184,7 +201,7 @@
                     continue; // 单件重不参与总重匹配
                 }
                 
-                // 再匹配总重（只要包含“数字+kg”就提取，不管前缀）
+                // 再匹配总重（只要包含"数字+kg"就提取，不管前缀）
                 if (!totalWeight) { // 只提取第一个匹配到的总重
                     const totalMatch = line.match(totalWeightRegex);
                     if (totalMatch) {
@@ -193,15 +210,25 @@
                 }
             }
 
-            // 3. 提取件数（优先关键词）
-            let cases = 1;
-            const casesRegex = /(\d+)\s*(?:crts?|ctns?|plts?|pkgs?|boxes?|cases?|件|箱|pallets?|tents?|x Pallets?|xPallets?|carts?|karts?|PALETY?|Cartons?|packages?|Crates?|crate?|pcs|Palls?|pal?|colis?|collis?|rolls?|pieces?)/i;
+            // 3. 提取件数（优先关键词） - 增强匹配
+            let cases = 0;
+            const casesRegex = /(\d+)\s*(?:crts?|ctns?|plts?|pkgs?|boxes?|cases?|件|箱|pallets?|tents?|x\s*Pallets?|xPallets?|carts?|karts?|PALETY?|Cartons?|packages?|Crates?|crate?|pcs|Palls?|pal?|colis?|collis?|rolls?|pieces?)/i;
+            
+            // 特别处理 "total 80 CTN" 这种格式
+            const totalCasesRegex = /(?:total|TOTAL|总计|合计|一共|共)\s*(\d+)\s*(?:crts?|ctns?|plts?|pkgs?|boxes?|cases?|件|箱)/i;
             
             for (let line of lines) {
-                const match = line.match(casesRegex);
-                if (match) {
-                    cases = parseInt(match[1]);
+                // 先匹配带"total"关键词的
+                const totalMatch = line.match(totalCasesRegex);
+                if (totalMatch) {
+                    cases = parseInt(totalMatch[1]);
                     break;
+                }
+                
+                // 再匹配普通件数
+                const match = line.match(casesRegex);
+                if (match && !cases) { // 避免被后面的非关键匹配覆盖
+                    cases = parseInt(match[1]);
                 }
             }
 
@@ -216,32 +243,51 @@
                 }
             }
 
-            // 5. 解析尺寸行，计算总件数（无关键词时）和总CBM
+            // 5. 解析尺寸行，获取单件尺寸信息
             let sizeLinesInfo = [];
-            let totalCasesFromSize = 0;
-            let totalCBM = directCBM; // 优先使用直接识别的CBM，无则计算尺寸
-            let sizeOutput = "";
-            
-            // 匹配尺寸行的正则（包含数字×数字×数字+单位）
-            const sizeLineRegex = /\d+\.?\d*\s*[*x×X]\s*\d+\.?\d*\s*[*x×X]\s*\d+\.?\d*\s*(?:mm|cm|m|MM|CM|M)/i;
+            let singleSizeCBM = 0; // 单件体积
+            let sizeLineDisplay = ""; // 用于显示的尺寸行
             
             // 如果没有直接识别到CBM，才通过尺寸计算
             if (directCBM === 0) {
                 for (let line of lines) {
-                    if (sizeLineRegex.test(line)) {
+                    // 更宽松的尺寸匹配，支持各种格式
+                    if (/(\d+\.?\d*)\s*[*x×X]\s*(\d+\.?\d*)\s*[*x×X]\s*(\d+\.?\d*)/i.test(line)) {
                         const sizeInfo = parseSizeLine(line);
-                        sizeLinesInfo.push(sizeInfo);
-                        totalCasesFromSize += sizeInfo.multiple;
-                        // 累加该行CBM
-                        totalCBM += calculateSizeToCBM(sizeInfo.sizeValues, sizeInfo.unitType, sizeInfo.multiple);
-                        // 拼接尺寸输出（保留原始格式）
-                        sizeOutput += sizeInfo.originalLine + "\n";
+                        if (sizeInfo.sizeValues) {
+                            sizeLinesInfo.push(sizeInfo);
+                            // 计算单件体积（第一个有效尺寸行）
+                            if (singleSizeCBM === 0) {
+                                singleSizeCBM = calculateSizeToCBM(sizeInfo.sizeValues, sizeInfo.unitType);
+                                // 只保留原始尺寸格式用于显示
+                                sizeLineDisplay = sizeInfo.originalLine.replace(/[*xX]\d+\s*$/, '').trim();
+                            }
+                        }
                     }
                 }
             }
 
-            // 确定最终件数：优先关键词件数，无则用尺寸统计的件数（至少1）
-            const finalCases = cases > 1 ? cases : (totalCasesFromSize > 0 ? totalCasesFromSize : 1);
+            // 6. 计算总CBM
+            let totalCBM = directCBM; // 优先使用直接识别的CBM
+            
+            // 如果有直接CBM，直接使用
+            if (directCBM > 0) {
+                totalCBM = directCBM;
+            } 
+            // 如果有尺寸信息和总件数，计算总CBM
+            else if (cases > 0 && singleSizeCBM > 0) {
+                totalCBM = singleSizeCBM * cases;
+            }
+            // 如果没有总件数，但有尺寸行，使用尺寸行中的倍数累加
+            else if (cases === 0 && sizeLinesInfo.length > 0) {
+                for (const sizeInfo of sizeLinesInfo) {
+                    const singleCBM = calculateSizeToCBM(sizeInfo.sizeValues, sizeInfo.unitType);
+                    totalCBM += singleCBM * sizeInfo.multiple;
+                }
+            }
+            
+            // 确定最终件数
+            const finalCases = cases > 0 ? cases : (sizeLinesInfo.reduce((sum, info) => sum + info.multiple, 0) || 1);
             
             // 重量计算逻辑：优先总重，无则用单件重×件数
             let finalWeight = null;
@@ -253,31 +299,35 @@
                 finalWeight = singleWeight * finalCases;
             }
 
-            // 6. 计算最终CBM（保留2位小数）
-            const finalCBM = totalCBM.toFixed(2);
+            // 7. 计算最终CBM（保留2位小数，货代通常用2位）
+            const finalCBM = parseFloat(totalCBM).toFixed(2);
             // 密度比（重量/CBM，四舍五入取整）
             const densityRatio = finalWeight && parseFloat(finalCBM) > 0 ? Math.round(finalWeight / parseFloat(finalCBM)) : "";
 
-            // 7. 拼接输出
+            // 8. 拼接输出（简化版）
             if (finalWeight) {
-                output += `${airport} / ${finalCases}pcs / ${finalWeight.toFixed(1)}kgs / ${finalCBM}cbm\n`;
+                output += `${airport} / ${finalCases}pcs / ${finalWeight.toFixed(1)}kgs / ${finalCBM}cbm`;
             } else {
-                output += `${airport} / ${finalCases}pcs / ?kgs / ${finalCBM}cbm\n`;
+                output += `${airport} / ${finalCases}pcs / ?kgs / ${finalCBM}cbm`;
             }
             
             // 添加尺寸信息（如果有）
-            if (sizeOutput) {
-                output += sizeOutput.trim() + "\n";
+            if (sizeLineDisplay) {
+                output += `\n${sizeLineDisplay}`;
             }
             
-            // 修复核心：无论是否有尺寸行，只要有重量和CBM就显示密度比
+            // 添加密度比（如果有）
             if (densityRatio) {
-                output += `1:${densityRatio}`;
+                if (sizeLineDisplay) {
+                    output += `，1:${densityRatio}`;
+                } else {
+                    output += `\n1:${densityRatio}`;
+                }
             }
             
             // 识别失败提示（无重量且无CBM）
-            if (!finalWeight && directCBM === 0 && sizeOutput === "") {
-                output = "数据识别失败，请检查是否包含：\n- 重量（如93.5kg或13.5kg/件）\n- 尺寸（如1700*385*100mm）或CBM（如0.73cbm）\n- 目的地（如to FRA）";
+            if (!finalWeight && directCBM === 0 && sizeLinesInfo.length === 0) {
+                output = "数据识别失败，请检查是否包含：\n- 重量（如93.5kg或13.5kg/件）\n- 尺寸（如29*17*19CM）或CBM（如0.75cbm）\n- 目的地（如to FRA）\n- 件数（如total 80 CTN）\n\n支持的单位：mm, cm, m";
             }
             
             document.getElementById('result').textContent = output;
