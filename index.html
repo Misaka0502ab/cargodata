@@ -255,8 +255,8 @@
 
             // 6. 计算最终CBM（保留2位小数）
             const finalCBM = totalCBM.toFixed(2);
-            // 密度比
-            const densityRatio = finalWeight ? Math.round(finalWeight / parseFloat(finalCBM)) : "";
+            // 密度比（重量/CBM，四舍五入取整）
+            const densityRatio = finalWeight && parseFloat(finalCBM) > 0 ? Math.round(finalWeight / parseFloat(finalCBM)) : "";
 
             // 7. 拼接输出
             if (finalWeight) {
@@ -265,14 +265,18 @@
                 output += `${airport} / ${finalCases}pcs / ?kgs / ${finalCBM}cbm\n`;
             }
             
-            // 添加尺寸信息
+            // 添加尺寸信息（如果有）
             if (sizeOutput) {
-                output += sizeOutput.trim();
-                // 添加密度比（如果有重量）
-                if (finalWeight) {
-                    output += `\n1:${densityRatio}`;
-                }
-            } else if (!finalWeight && directCBM === 0) {
+                output += sizeOutput.trim() + "\n";
+            }
+            
+            // 修复核心：无论是否有尺寸行，只要有重量和CBM就显示密度比
+            if (densityRatio) {
+                output += `1:${densityRatio}`;
+            }
+            
+            // 识别失败提示（无重量且无CBM）
+            if (!finalWeight && directCBM === 0 && sizeOutput === "") {
                 output = "数据识别失败，请检查是否包含：\n- 重量（如93.5kg或13.5kg/件）\n- 尺寸（如1700*385*100mm）或CBM（如0.73cbm）\n- 目的地（如to FRA）";
             }
             
