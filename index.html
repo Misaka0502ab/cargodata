@@ -202,17 +202,21 @@
             };
         }
 
-        // 改进：清理尺寸行，支持两种格式
+        // 改进：清理尺寸行，支持两种格式，生成标准尺寸键
         function cleanSizeLine(line) {
             // 先移除重量信息
             const lineWithoutWeight = line.replace(/(\d+\.?\d*)\s*(?:kg|kgs|千克|公斤)/gi, '').trim();
+            
+            let cleanLine = "";
+            let sizeKey = "";
+            let multiple = 1;
             
             // 先尝试匹配格式1：2*30*20*20cm
             const format1Regex = /^(\d+)\s*[*xX×]\s*(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*(mm|cm|m|MM|CM|M)?/i;
             const format1Match = lineWithoutWeight.match(format1Regex);
             
             if (format1Match) {
-                const multiple = parseInt(format1Match[1]) || 1;
+                multiple = parseInt(format1Match[1]) || 1;
                 const dim1 = format1Match[2];
                 const dim2 = format1Match[3];
                 const dim3 = format1Match[4];
@@ -222,12 +226,14 @@
                     unit = format1Match[5].toLowerCase();
                 }
                 
-                // 格式1转换为：30*20*20cm*2
-                let cleanLine = `${dim1}*${dim2}*${dim3}${unit}`;
+                // 生成标准尺寸键（用于合并）
+                sizeKey = `${dim1}*${dim2}*${dim3}${unit}`;
+                cleanLine = `${dim1}*${dim2}*${dim3}${unit}`;
                 if (multiple > 1) {
                     cleanLine += `*${multiple}`;
                 }
-                return cleanLine;
+                
+                return { cleanLine, sizeKey, multiple };
             }
             
             // 尝试匹配格式2：30*20*20cm*2 或 30*20*20cm
@@ -238,18 +244,21 @@
                 const dim1 = format2WithSuffixMatch[1];
                 const dim2 = format2WithSuffixMatch[2];
                 const dim3 = format2WithSuffixMatch[3];
-                const multiple = parseInt(format2WithSuffixMatch[5]) || 1;
+                multiple = parseInt(format2WithSuffixMatch[5]) || 1;
                 let unit = "cm";
                 
                 if (format2WithSuffixMatch[4]) {
                     unit = format2WithSuffixMatch[4].toLowerCase();
                 }
                 
-                let cleanLine = `${dim1}*${dim2}*${dim3}${unit}`;
+                // 生成标准尺寸键（用于合并）
+                sizeKey = `${dim1}*${dim2}*${dim3}${unit}`;
+                cleanLine = `${dim1}*${dim2}*${dim3}${unit}`;
                 if (multiple > 1) {
                     cleanLine += `*${multiple}`;
                 }
-                return cleanLine;
+                
+                return { cleanLine, sizeKey, multiple };
             }
             
             // 匹配格式2无后缀：30*20*20cm
@@ -266,11 +275,17 @@
                     unit = format2NoSuffixMatch[4].toLowerCase();
                 }
                 
-                return `${dim1}*${dim2}*${dim3}${unit}`;
+                // 生成标准尺寸键（用于合并）
+                sizeKey = `${dim1}*${dim2}*${dim3}${unit}`;
+                cleanLine = `${dim1}*${dim2}*${dim3}${unit}`;
+                
+                return { cleanLine, sizeKey, multiple: 1 };
             }
             
             // 如果没有匹配到任何格式，返回原始行（移除重量后）
-            return lineWithoutWeight;
+            sizeKey = lineWithoutWeight;
+            cleanLine = lineWithoutWeight;
+            return { cleanLine, sizeKey, multiple: 1 };
         }
 
         // 修复：体积单位换算核心函数
@@ -306,7 +321,7 @@
             return volumeM3;
         }
 
-        // 修改：实时转换函数 - 支持两种尺寸格式
+        // 修改：实时转换函数 - 在输出时合并相同尺寸
         function convert() {
             const text = document.getElementById('input').value.trim();
             const resultElement = document.getElementById('result');
@@ -401,7 +416,6 @@
             // 5. 解析尺寸行，获取单件尺寸信息
             let sizeLinesInfo = [];
             let allSizeLines = []; // 存储所有尺寸行的原始文本
-            let allCleanSizeLines = []; // 存储清理后的尺寸行
             
             // 重要：无论是否有直接CBM，都要解析尺寸行
             for (let line of lines) {
@@ -417,10 +431,6 @@
                         sizeLinesInfo.push(sizeInfo);
                         // 保存所有尺寸行的原始文本
                         allSizeLines.push(sizeInfo.originalLine);
-                        
-                        // 清理尺寸行并保存
-                        const cleanLine = cleanSizeLine(line);
-                        allCleanSizeLines.push(cleanLine);
                     }
                 }
             }
@@ -497,7 +507,52 @@
                 output += `${airport} / ${finalCases}pcs / ?kgs / ${finalCBM}cbm`;
             }
             
-            // 添加所有尺寸信息（如果有多个尺寸）- 使用清理后的尺寸行
+            // 11. 关键改进：在输出时合并相同尺寸
+            let mergedSizes = new Map(); // 用于合并相同尺寸
+            
+            // 清理所有尺寸行，并合并相同尺寸
+            for (let line of lines) {
+                const sizePattern1 = /^\d+\s*[*xX×]\s*\d+.*[*xX×].*[*xX×].*\d+/i;
+                const sizePattern2 = /\d+.*[*xX×].*[*xX×].*\d+/i;
+                
+                if (sizePattern1.test(line) || sizePattern2.test(line)) {
+                    const cleanedData = cleanSizeLine(line);
+                    
+                    if (cleanedData.sizeKey) {
+                        // 提取基础尺寸（不带件数）
+                        const baseSizeMatch = cleanedData.sizeKey.match(/^([^*]+(?:\*[^*]+){2}[a-z]*)/i);
+                        if (baseSizeMatch) {
+                            const baseSize = baseSizeMatch[0];
+                            const currentMultiple = cleanedData.multiple || 1;
+                            
+                            if (mergedSizes.has(baseSize)) {
+                                // 已有相同尺寸，累加件数
+                                const existing = mergedSizes.get(baseSize);
+                                existing.totalMultiple += currentMultiple;
+                                mergedSizes.set(baseSize, existing);
+                            } else {
+                                // 新尺寸，添加到map
+                                mergedSizes.set(baseSize, {
+                                    baseSize: baseSize,
+                                    totalMultiple: currentMultiple
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 12. 生成合并后的尺寸行
+            let allCleanSizeLines = [];
+            for (const [baseSize, data] of mergedSizes) {
+                let cleanLine = baseSize;
+                if (data.totalMultiple > 1) {
+                    cleanLine += `*${data.totalMultiple}`;
+                }
+                allCleanSizeLines.push(cleanLine);
+            }
+            
+            // 添加所有尺寸信息（如果有多个尺寸）- 使用合并后的尺寸行
             if (allCleanSizeLines.length > 0) {
                 // 用中文逗号连接所有清理后的尺寸行
                 output += `\n${allCleanSizeLines.join('，')}`;
