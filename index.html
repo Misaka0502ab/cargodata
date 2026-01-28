@@ -411,7 +411,7 @@
 
             // 3. 提取件数（优先关键词） - 增强匹配
             let cases = 0;
-            const casesRegex = /(\d+)\s*(?:crts?|ctns?|plts?|pkgs?|boxes?|cases?|件|箱|pallets?|tents?|x\s*Pallets?|xPallets?|carts?|karts?|PALETY?|Cartons?|packages?|Crates?|crate?|pcs|Palls?|pal?|colis?|collis?|rolls?|pieces?)/i;
+            const casesRegex = /(\d+)\s*(?:crts?|ctns?|plts?|pkgs?|boxes?|box?|cases?|件|箱|pallets?|tents?|x\s*Pallets?|xPallets?|carts?|karts?|PALETY?|Cartons?|packages?|Crates?|crate?|pcs|Palls?|pal?|colis?|collis?|rolls?|pieces?)/i;
             
             // 特别处理 "total 80 CTN" 这种格式
             const totalCasesRegex = /(?:total|TOTAL|总计|合计|一共|共)\s*(\d+)\s*(?:crts?|ctns?|plts?|pkgs?|boxes?|cases?|件|箱)/i;
@@ -671,3 +671,4 @@
     </script>
 </body>
 </html>
+
