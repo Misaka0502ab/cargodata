@@ -125,34 +125,66 @@
     </div>
 
     <script>
-        // 预处理函数 - 专门处理 "数值 单位 x 数值 单位 x 数值 单位" 格式
+        // 🆕 增强版预处理函数 - 处理多种带单位的尺寸格式
         function preprocessSizeLine(line) {
             // 先移除重量部分，避免干扰
             const lineWithoutWeight = line.replace(/(\d+\.?\d*)\s*(?:kg|kgs|千克|公斤)/gi, '').trim();
             
-            // 匹配模式：数字 单位 x 数字 单位 x 数字 单位
+            // 模式1：数值 单位 x 数值 单位 x 数值 单位
             // 例如：1,23 m x 0,35 m x 0,26 m
-            const patternWithUnits = /(\d+[.,]?\d*)\s*(mm|cm|m)\s*[xX×]\s*(\d+[.,]?\d*)\s*(mm|cm|m)\s*[xX×]\s*(\d+[.,]?\d*)\s*(mm|cm|m)/i;
-            const match = lineWithoutWeight.match(patternWithUnits);
+            const patternWithX = /(\d+[.,]?\d*)\s*(mm|cm|m)\s*[xX×]\s*(\d+[.,]?\d*)\s*(mm|cm|m)\s*[xX×]\s*(\d+[.,]?\d*)\s*(mm|cm|m)/i;
+            let match = lineWithoutWeight.match(patternWithX);
             
             if (match) {
-                // 提取三个数值（处理逗号小数点）
                 let val1 = match[1].replace(',', '.');
                 let val2 = match[3].replace(',', '.');
                 let val3 = match[5].replace(',', '.');
-                
-                // 提取单位（取第一个单位，三个单位应该一样）
                 let unit = match[2].toLowerCase();
                 
-                // 重新组合成标准格式：数值*数值*数值单位
                 const standardFormat = `${val1}*${val2}*${val3}${unit}`;
-                
-                // 检查是否还有件数后缀（如 *2）
                 const pieceMatch = lineWithoutWeight.match(/[*xX×]\s*(\d+)$/i);
                 if (pieceMatch) {
                     return `${standardFormat}*${pieceMatch[1]}`;
                 }
+                return standardFormat;
+            }
+            
+            // 🆕 模式2：数值 单位 数值 单位 数值 单位（没有 x 分隔符，空格分隔）
+            // 例如：1,38 m 0,35 m 0,34 m
+            const patternNoX = /(\d+[.,]?\d*)\s*(mm|cm|m)\s+(\d+[.,]?\d*)\s*(mm|cm|m)\s+(\d+[.,]?\d*)\s*(mm|cm|m)/i;
+            match = lineWithoutWeight.match(patternNoX);
+            
+            if (match) {
+                let val1 = match[1].replace(',', '.');
+                let val2 = match[3].replace(',', '.');
+                let val3 = match[5].replace(',', '.');
+                let unit = match[2].toLowerCase();
                 
+                const standardFormat = `${val1}*${val2}*${val3}${unit}`;
+                const pieceMatch = lineWithoutWeight.match(/[*xX×]\s*(\d+)$/i);
+                if (pieceMatch) {
+                    return `${standardFormat}*${pieceMatch[1]}`;
+                }
+                return standardFormat;
+            }
+            
+            // 🆕 模式3：数值 单位 数值 单位 数值 单位（允许特殊符号如 * 或 空格混合）
+            // 例如：1,38 *m 0,35 m* 0,34 m
+            // 这个正则会提取数字和单位，忽略中间的干扰符号
+            const patternMixed = /(\d+[.,]?\d*)\s*[^*\s]*?\s*(mm|cm|m)[^\d]*?(\d+[.,]?\d*)\s*[^*\s]*?\s*(mm|cm|m)[^\d]*?(\d+[.,]?\d*)\s*[^*\s]*?\s*(mm|cm|m)/i;
+            match = lineWithoutWeight.match(patternMixed);
+            
+            if (match) {
+                let val1 = match[1].replace(',', '.');
+                let val2 = match[3].replace(',', '.');
+                let val3 = match[5].replace(',', '.');
+                let unit = match[2].toLowerCase();
+                
+                const standardFormat = `${val1}*${val2}*${val3}${unit}`;
+                const pieceMatch = lineWithoutWeight.match(/[*xX×]\s*(\d+)$/i);
+                if (pieceMatch) {
+                    return `${standardFormat}*${pieceMatch[1]}`;
+                }
                 return standardFormat;
             }
             
@@ -319,9 +351,9 @@
             };
         }
 
-        // 🔧 修复：清理尺寸行，支持两种格式，生成标准尺寸键（现在也调用预处理了）
+        // 清理尺寸行，支持两种格式，生成标准尺寸键（现在也调用预处理了）
         function cleanSizeLine(line) {
-            // 🔧 关键修复：先调用预处理，转换格式
+            // 关键修复：先调用预处理，转换格式
             const preprocessed = preprocessSizeLine(line);
             
             // 先移除重量信息
@@ -597,7 +629,7 @@
                 output += `${airport} / ${finalCases}pcs / ?kgs / ${finalCBM}cbm`;
             }
             
-            // 11. 合并相同尺寸（🔧 现在cleanSizeLine已经支持预处理了）
+            // 11. 合并相同尺寸（现在cleanSizeLine已经支持预处理了）
             let mergedSizes = new Map();
             
             for (let line of lines) {
@@ -650,7 +682,7 @@
             
             // 识别失败提示
             if (!finalWeight && directCBM === 0 && sizeLinesInfo.length === 0) {
-                output = "数据识别失败，请检查是否包含：\n- 重量（如93.5kg或13.5kg/件）\n- 尺寸（如29*17*19CM）或CBM（如0.75cbm）\n- 目的地（如to FRA）\n- 件数（如total 80 CTN）\n\n支持的单位：mm, cm, m\n支持格式：30*20*20cm 或 1,23 m x 0,35 m x 0,26 m";
+                output = "数据识别失败，请检查是否包含：\n- 重量（如93.5kg或13.5kg/件）\n- 尺寸（如29*17*19CM）或CBM（如0.75cbm）\n- 目的地（如to FRA）\n- 件数（如total 80 CTN）\n\n支持的单位：mm, cm, m\n支持格式：30*20*20cm 或 1,23 m x 0,35 m x 0,26 m 或 1,38 m 0,35 m 0,34 m";
             }
             
             resultElement.textContent = output;
