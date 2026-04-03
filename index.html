@@ -1,55 +1,61 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-    <!-- 标准ICO格式 -->
-    <link rel="icon" href="favicon.ico" type="image/x-icon">
-    
-    <!-- 如果有多尺寸PNG图标 -->
-    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
-    
-    <!-- Apple设备专用 -->
-    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
-    
-    <!-- 网页主题色（可选） -->
+
+    <meta charset="UTF-8">
     <meta name="theme-color" content="#ffffff">
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
     <title>货代数据转换器-全能适配版</title>
     <style>
-        body { 
-            font-family: 'Arial', sans-serif; 
-            max-width: 800px; 
-            margin: 0 auto; 
-            padding: 20px; 
-            background-color: #f5f5f5; 
-        }
-        h1 { 
-            color: #2c3e50; 
-            text-align: center; 
+        body {
             font-family: 'Arial', sans-serif;
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 5px;
+            background-color: #f5f5f5;
+            transition: all 0.3s ease;
         }
-        .container { 
-            background: white; 
-            padding: 25px; 
-            border-radius: 8px; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
-        }
-        textarea { 
-            width: 100%; 
-            height: 150px; 
-            padding: 10px; 
-            border: 1px solid #ddd; 
-            border-radius: 4px; 
-            resize: vertical; 
+        h1 {
+            color: #2c3e50;
+            text-align: center;
             font-family: 'Arial', sans-serif;
-            font-size: 14px;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            user-select: none;
         }
-        
+        h1:active {
+            opacity: 0.7;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 3px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 100%;
+            margin: 0 auto;
+            transition: all 0.3s ease;
+        }
+        textarea {
+            width: 100%;
+            height: 300px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: vertical;
+            font-family: 'Arial', sans-serif;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+
         /* 快捷按钮容器样式 */
         .shortcut-btn-group {
             display: flex;
             gap: 10px;
             margin: 15px 0 10px 0;
+            transition: all 0.3s ease;
         }
         .shortcut-btn {
             background: #2ecc71;
@@ -61,11 +67,12 @@
             flex: 1;
             font-size: 14px;
             font-family: 'Arial', sans-serif;
+            transition: all 0.3s ease;
         }
         .shortcut-btn:hover {
             background: #27ae60;
         }
-        
+
         /* 主按钮样式 */
         .main-btn {
             background: #3498db;
@@ -77,7 +84,7 @@
             width: 100%;
             font-size: 16px;
             margin: 5px 0 0 0;
-            transition: background 0.3s;
+            transition: all 0.3s ease;
             font-family: 'Arial', sans-serif;
         }
         .main-btn:hover {
@@ -86,660 +93,733 @@
         .main-btn.copied {
             background: #2ecc71;
         }
-        
-        .result-box { 
-            background: #f8f9fa; 
-            padding: 15px; 
-            border-radius: 4px; 
-            border-left: 4px solid #3498db; 
-            margin-top: 20px; 
+
+        .result-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #3498db;
+            margin-top: 20px;
             white-space: pre-wrap;
-            min-height: 60px;
+            min-height: 80px;
             font-family: 'Arial', sans-serif;
-            font-size: 14px;
+            font-size: 16px;
+            transition: all 0.3s ease;
         }
         .result-placeholder {
             color: #999;
             font-style: italic;
             font-family: 'Arial', sans-serif;
         }
-    </style>
-</head>
-<body>
-    <h1>✈️ 货代数据转换器</h1>
-    <div class="container">
-        <textarea id="input" placeholder="棒棒！"></textarea>
-        
-        <!-- 快捷按钮区域（单独一行） -->
-        <div class="shortcut-btn-group">
-            <button class="shortcut-btn" onclick="fillAirport('FRA')">FRA</button>
-            <button class="shortcut-btn" onclick="fillAirport('WAW')">WAW</button>
-        </div>
-        
-        <!-- 一键复制按钮（单独一行） -->
-        <button class="main-btn" onclick="copyResult()" id="copyBtn">一键复制</button>
-        
-        <div id="result" class="result-box">
-            <span class="result-placeholder">输入数据后会自动转换...</span>
-        </div>
-    </div>
 
-    <script>
-        // 🆕 增强版预处理函数 - 处理多种带单位的尺寸格式
-        function preprocessSizeLine(line) {
-            // 先移除重量部分，避免干扰
-            const lineWithoutWeight = line.replace(/(\d+\.?\d*)\s*(?:kg|kgs|千克|公斤)/gi, '').trim();
-            
-            // 模式1：数值 单位 x 数值 单位 x 数值 单位
-            // 例如：1,23 m x 0,35 m x 0,26 m
-            const patternWithX = /(\d+[.,]?\d*)\s*(mm|cm|m)\s*[xX×]\s*(\d+[.,]?\d*)\s*(mm|cm|m)\s*[xX×]\s*(\d+[.,]?\d*)\s*(mm|cm|m)/i;
-            let match = lineWithoutWeight.match(patternWithX);
-            
-            if (match) {
-                let val1 = match[1].replace(',', '.');
-                let val2 = match[3].replace(',', '.');
-                let val3 = match[5].replace(',', '.');
-                let unit = match[2].toLowerCase();
-                
-                const standardFormat = `${val1}*${val2}*${val3}${unit}`;
-                const pieceMatch = lineWithoutWeight.match(/[*xX×]\s*(\d+)$/i);
-                if (pieceMatch) {
-                    return `${standardFormat}*${pieceMatch[1]}`;
-                }
-                return standardFormat;
-            }
-            
-            // 🆕 模式2：数值 单位 数值 单位 数值 单位（没有 x 分隔符，空格分隔）
-            // 例如：1,38 m 0,35 m 0,34 m
-            const patternNoX = /(\d+[.,]?\d*)\s*(mm|cm|m)\s+(\d+[.,]?\d*)\s*(mm|cm|m)\s+(\d+[.,]?\d*)\s*(mm|cm|m)/i;
-            match = lineWithoutWeight.match(patternNoX);
-            
-            if (match) {
-                let val1 = match[1].replace(',', '.');
-                let val2 = match[3].replace(',', '.');
-                let val3 = match[5].replace(',', '.');
-                let unit = match[2].toLowerCase();
-                
-                const standardFormat = `${val1}*${val2}*${val3}${unit}`;
-                const pieceMatch = lineWithoutWeight.match(/[*xX×]\s*(\d+)$/i);
-                if (pieceMatch) {
-                    return `${standardFormat}*${pieceMatch[1]}`;
-                }
-                return standardFormat;
-            }
-            
-            // 🆕 模式3：数值 单位 数值 单位 数值 单位（允许特殊符号如 * 或 空格混合）
-            // 例如：1,38 *m 0,35 m* 0,34 m
-            // 这个正则会提取数字和单位，忽略中间的干扰符号
-            const patternMixed = /(\d+[.,]?\d*)\s*[^*\s]*?\s*(mm|cm|m)[^\d]*?(\d+[.,]?\d*)\s*[^*\s]*?\s*(mm|cm|m)[^\d]*?(\d+[.,]?\d*)\s*[^*\s]*?\s*(mm|cm|m)/i;
-            match = lineWithoutWeight.match(patternMixed);
-            
-            if (match) {
-                let val1 = match[1].replace(',', '.');
-                let val2 = match[3].replace(',', '.');
-                let val3 = match[5].replace(',', '.');
-                let unit = match[2].toLowerCase();
-                
-                const standardFormat = `${val1}*${val2}*${val3}${unit}`;
-                const pieceMatch = lineWithoutWeight.match(/[*xX×]\s*(\d+)$/i);
-                if (pieceMatch) {
-                    return `${standardFormat}*${pieceMatch[1]}`;
-                }
-                return standardFormat;
-            }
-            
-            // 如果没匹配到，返回原行
-            return line;
+        /* 提示条 */
+        .mode-tip {
+            text-align: center;
+            font-size: 12px;
+            color: #999;
+            margin-top: 10px;
+            transition: all 0.3s ease;
         }
 
-        // 兜底函数 - 智能提取数字和单位
-        function fallbackParseSizeLine(line) {
-            // 移除重量信息
-            const lineWithoutWeight = line.replace(/(\d+\.?\d*)\s*(?:kg|kgs|千克|公斤)/gi, '').trim();
-            
-            // 1. 提取所有数字（支持逗号小数点）
-            const numberRegex = /(\d+[.,]?\d*)/g;
-            const numbers = [];
-            let numMatch;
-            while ((numMatch = numberRegex.exec(lineWithoutWeight)) !== null) {
-                // 转换逗号为点
-                numbers.push(parseFloat(numMatch[1].replace(',', '.')));
+        /* 👇 电脑端样式（屏幕宽度大于768px时）👇 */
+        @media (min-width: 769px) {
+            body {
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
             }
-            
-            // 2. 提取所有单位
-            const unitRegex = /(mm|cm|m)/gi;
-            const units = [];
-            let unitMatch;
-            while ((unitMatch = unitRegex.exec(lineWithoutWeight)) !== null) {
-                units.push(unitMatch[1].toLowerCase());
+
+            .container {
+                padding: 25px;
+                border-radius: 8px;
             }
-            
-            // 3. 判断是否有足够的数字（至少3个才能组成尺寸）
-            if (numbers.length >= 3) {
-                // 取前三个数字作为长宽高
-                const dim1 = numbers[0];
-                const dim2 = numbers[1];
-                const dim3 = numbers[2];
-                
-                // 确定单位：优先使用第一个单位，如果没有则默认cm
-                let unitType = units.length > 0 ? units[0] : "cm";
-                
-                // 判断件数：如果有第4个数字，可能是件数
-                let multiple = numbers.length >= 4 ? numbers[3] : 1;
-                
-                // 但如果第4个数字看起来不像件数（比如太大），就不当件数处理
-                if (numbers.length >= 4 && numbers[3] > 100) {
-                    multiple = 1;
+
+            textarea {
+                height: 180px;
+                font-size: 14px;
+            }
+
+            .shortcut-btn {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+
+            .result-box {
+                font-size: 14px;
+            }
+
+            h1 {
+                font-size: 28px;
+            }
+
+            .mode-tip {
+                font-size: 12px;
+            }
+        }
+
+        /* 👇 手机端样式（屏幕宽度小于等于768px时）👇 */
+        @media (max-width: 768px) {
+            body {
+                max-width: 100%;
+                margin: 0;
+                padding: 12px;
+            }
+
+            .container {
+                padding: 15px;
+            }
+
+            textarea {
+                height: 300px;
+                font-size: 18px;
+                padding: 12px;
+            }
+
+            .shortcut-btn {
+                padding: 14px 16px;
+                font-size: 16px;
+            }
+
+            .result-box {
+                font-size: 17px;
+                padding: 18px;
+            }
+
+            h1 {
+                font-size: 22px;
+            }
+
+            .main-btn {
+                font-size: 18px;
+                padding: 14px 20px;
+            }
+
+            .mode-tip {
+                font-size: 11px;
+            }
+        }
+
+        /* ========== 老年版样式（只在手机端生效） ========== */
+        @media (max-width: 768px) {
+            body.elder-mode textarea {
+                height: 450px;
+                font-size: 28px;
+                padding: 18px;
+                line-height: 1.5;
+                box-sizing: border-box;
+            }
+
+            body.elder-mode .shortcut-btn {
+                padding: 22px 24px;
+                font-size: 26px;
+                border-radius: 12px;
+            }
+
+            body.elder-mode .shortcut-btn-group {
+                gap: 15px;
+                margin: 20px 0 15px 0;
+            }
+
+            body.elder-mode .main-btn {
+                font-size: 28px;
+                padding: 22px 20px;
+                border-radius: 12px;
+                margin: 10px 0 0 0;
+            }
+
+            body.elder-mode .result-box {
+                font-size: 26px;
+                padding: 25px;
+                min-height: 120px;
+                line-height: 1.5;
+            }
+
+            body.elder-mode h1 {
+                font-size: 36px;
+                margin-bottom: 20px;
+            }
+
+            body.elder-mode .container {
+                padding: 25px;
+                border-radius: 12px;
+            }
+
+            body.elder-mode .mode-tip {
+                font-size: 18px;
+                margin-top: 15px;
+                color: #e67e22;
+                font-weight: bold;
+            }
+
+            body.elder-mode .result-placeholder {
+                font-size: 26px;
+            }
+        }
+    </style>
+
+</head>
+<body>
+<h1 id="mainTitle">✈️ 货代数据转换器</h1>
+<div class="container">
+    <textarea id="input" placeholder="棒棒!" aria-label="文本输入框"></textarea>
+
+    <!-- 快捷按钮区域（单独一行） -->
+    <div class="shortcut-btn-group">
+        <button class="shortcut-btn" onclick="fillAirport('FRA')">FRA</button>
+        <button class="shortcut-btn" onclick="fillAirport('WAW')">WAW</button>
+        <button class="shortcut-btn" onclick="fillAirport('MAD')">MAD</button>
+        <button class="shortcut-btn" onclick="fillAirport('BCN')">BCN</button>
+    </div>
+
+    <!-- 按钮区域 -->
+    <button class="main-btn" onclick="copyResult()" id="copyBtn">一键复制</button>
+    <button class="main-btn" onclick="clearDraft()" id="clearBtn" style="background: #e67e22; margin-top: 10px;">🗑️ 清除草稿</button>
+
+    <div id="result" class="result-box">
+        <span class="result-placeholder">输入数据后会自动转换...</span>
+    </div>
+</div>
+<div id="modeTip" class="mode-tip">💡 双击标题切换老年版</div>
+
+<script>
+    // ========== 老年版切换功能 ==========
+    const mainTitle = document.getElementById('mainTitle');
+    const modeTip = document.getElementById('modeTip');
+
+    // 检查是否已保存老年版偏好
+    function checkElderMode() {
+        const isElderMode = localStorage.getItem('elderMode') === 'true';
+        if (isElderMode && window.innerWidth <= 768) {
+            document.body.classList.add('elder-mode');
+            modeTip.textContent = '👴 老年版已开启 | 再次双击标题切换回标准版';
+        } else {
+            document.body.classList.remove('elder-mode');
+            if (window.innerWidth <= 768) {
+                modeTip.textContent = '💡 双击标题切换老年版';
+            } else {
+                modeTip.textContent = '💡 手机端双击标题可切换老年版';
+            }
+        }
+    }
+
+    // 切换老年版
+    function toggleElderMode() {
+        // 只在手机端生效
+        if (window.innerWidth > 768) {
+            modeTip.textContent = '💡 老年版仅在手机端可用';
+            setTimeout(() => {
+                if (window.innerWidth <= 768) {
+                    modeTip.textContent = '💡 双击标题切换老年版';
+                } else {
+                    modeTip.textContent = '💡 手机端双击标题可切换老年版';
                 }
-                
-                // 构建尺寸数值数组
-                const sizeValues = [dim1.toString(), dim2.toString(), dim3.toString()];
-                
-                return {
-                    originalLine: line.trim(),
-                    pureSizeLine: lineWithoutWeight,
-                    sizeValues: sizeValues,
-                    unitType: unitType,
-                    multiple: multiple,
-                    format: "fallback"
-                };
+            }, 2000);
+            return;
+        }
+
+        if (document.body.classList.contains('elder-mode')) {
+            document.body.classList.remove('elder-mode');
+            localStorage.setItem('elderMode', 'false');
+            modeTip.textContent = '💡 双击标题切换老年版';
+        } else {
+            document.body.classList.add('elder-mode');
+            localStorage.setItem('elderMode', 'true');
+            modeTip.textContent = '👴 老年版已开启 | 再次双击标题切换回标准版';
+        }
+    }
+
+    // 双击标题切换
+    mainTitle.addEventListener('dblclick', toggleElderMode);
+
+    // 页面加载时检查偏好
+    checkElderMode();
+
+    // 窗口大小改变时重新检查
+    window.addEventListener('resize', function() {
+        checkElderMode();
+    });
+
+    // ========== 以下是原有的转换功能（完整保留） ==========
+    // 🆕 增强版预处理函数 - 处理多种带单位的尺寸格式
+    function preprocessSizeLine(line) {
+        // 先移除重量部分，避免干扰
+        const lineWithoutWeight = line.replace(/(\d+\.?\d*)\s*(?:kg|kgs|千克|公斤)/gi, '').trim();
+
+        // 模式1：数值 单位 x 数值 单位 x 数值 单位
+        const patternWithX = /(\d+[.,]?\d*)\s*(mm|cm|m)\s*[xX×]\s*(\d+[.,]?\d*)\s*(mm|cm|m)\s*[xX×]\s*(\d+[.,]?\d*)\s*(mm|cm|m)/i;
+        let match = lineWithoutWeight.match(patternWithX);
+
+        if (match) {
+            let val1 = match[1].replace(',', '.');
+            let val2 = match[3].replace(',', '.');
+            let val3 = match[5].replace(',', '.');
+            let unit = match[2].toLowerCase();
+
+            const standardFormat = `${val1}*${val2}*${val3}${unit}`;
+            const pieceMatch = lineWithoutWeight.match(/[*xX×]\s*(\d+)$/i);
+            if (pieceMatch) {
+                return `${standardFormat}*${pieceMatch[1]}`;
             }
-            
-            // 完全无法识别，返回空
+            return standardFormat;
+        }
+
+        // 模式2：数值 单位 数值 单位 数值 单位（没有 x 分隔符，空格分隔）
+        const patternNoX = /(\d+[.,]?\d*)\s*(mm|cm|m)\s+(\d+[.,]?\d*)\s*(mm|cm|m)\s+(\d+[.,]?\d*)\s*(mm|cm|m)/i;
+        match = lineWithoutWeight.match(patternNoX);
+
+        if (match) {
+            let val1 = match[1].replace(',', '.');
+            let val2 = match[3].replace(',', '.');
+            let val3 = match[5].replace(',', '.');
+            let unit = match[2].toLowerCase();
+
+            const standardFormat = `${val1}*${val2}*${val3}${unit}`;
+            const pieceMatch = lineWithoutWeight.match(/[*xX×]\s*(\d+)$/i);
+            if (pieceMatch) {
+                return `${standardFormat}*${pieceMatch[1]}`;
+            }
+            return standardFormat;
+        }
+
+        // 模式3：数值 单位 数值 单位 数值 单位（允许特殊符号如 * 或 空格混合）
+        const patternMixed = /(\d+[.,]?\d*)\s*[^*\s]*?\s*(mm|cm|m)[^\d]*?(\d+[.,]?\d*)\s*[^*\s]*?\s*(mm|cm|m)[^\d]*?(\d+[.,]?\d*)\s*[^*\s]*?\s*(mm|cm|m)/i;
+        match = lineWithoutWeight.match(patternMixed);
+
+        if (match) {
+            let val1 = match[1].replace(',', '.');
+            let val2 = match[3].replace(',', '.');
+            let val3 = match[5].replace(',', '.');
+            let unit = match[2].toLowerCase();
+
+            const standardFormat = `${val1}*${val2}*${val3}${unit}`;
+            const pieceMatch = lineWithoutWeight.match(/[*xX×]\s*(\d+)$/i);
+            if (pieceMatch) {
+                return `${standardFormat}*${pieceMatch[1]}`;
+            }
+            return standardFormat;
+        }
+
+        return line;
+    }
+
+    // 兜底函数 - 智能提取数字和单位
+    function fallbackParseSizeLine(line) {
+        const lineWithoutWeight = line.replace(/(\d+\.?\d*)\s*(?:kg|kgs|千克|公斤)/gi, '').trim();
+        const numberRegex = /(\d+[.,]?\d*)/g;
+        const numbers = [];
+        let numMatch;
+        while ((numMatch = numberRegex.exec(lineWithoutWeight)) !== null) {
+            numbers.push(parseFloat(numMatch[1].replace(',', '.')));
+        }
+        const unitRegex = /(mm|cm|m)/gi;
+        const units = [];
+        let unitMatch;
+        while ((unitMatch = unitRegex.exec(lineWithoutWeight)) !== null) {
+            units.push(unitMatch[1].toLowerCase());
+        }
+        if (numbers.length >= 3) {
+            const dim1 = numbers[0];
+            const dim2 = numbers[1];
+            const dim3 = numbers[2];
+            let unitType = units.length > 0 ? units[0] : "cm";
+            let multiple = numbers.length >= 4 ? numbers[3] : 1;
+            if (numbers.length >= 4 && numbers[3] > 100) multiple = 1;
+            const sizeValues = [dim1.toString(), dim2.toString(), dim3.toString()];
             return {
                 originalLine: line.trim(),
                 pureSizeLine: lineWithoutWeight,
-                sizeValues: null,
-                unitType: "cm",
-                multiple: 1,
-                format: "unknown"
+                sizeValues: sizeValues,
+                unitType: unitType,
+                multiple: multiple,
+                format: "fallback"
             };
         }
+        return {
+            originalLine: line.trim(),
+            pureSizeLine: lineWithoutWeight,
+            sizeValues: null,
+            unitType: "cm",
+            multiple: 1,
+            format: "unknown"
+        };
+    }
 
-        // 解析尺寸行，支持两种格式 + 预处理 + 兜底
-        function parseSizeLine(line) {
-            // 第一步：先调用预处理，转换格式
-            const preprocessed = preprocessSizeLine(line);
-            
-            // 首先提取重量（如果有），避免干扰尺寸解析
-            const weightRemovedLine = preprocessed.replace(/(\d+\.?\d*)\s*(?:kg|kgs|千克|公斤)/gi, '').trim();
-            
-            let multiple = 1; // 默认1件
-            let sizeValues = null;
-            let unitType = "cm"; // 默认单位
-            
-            // 格式1：先尝试匹配 "2*30*20*20cm" 格式（4个数字，第一个是件数）
-            const format1Regex = /^(\d+)\s*[*xX×]\s*(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*(mm|cm|m|MM|CM|M)?/i;
-            const format1Match = weightRemovedLine.match(format1Regex);
-            
-            if (format1Match) {
-                multiple = parseInt(format1Match[1]) || 1;
-                sizeValues = [format1Match[2], format1Match[3], format1Match[4]];
-                
-                if (format1Match[5]) {
-                    unitType = format1Match[5].toLowerCase();
-                }
-                
-                return {
-                    originalLine: line.trim(),
-                    pureSizeLine: weightRemovedLine,
-                    sizeValues: sizeValues,
-                    unitType: unitType,
-                    multiple: multiple,
-                    format: "format1"
-                };
-            }
-            
-            // 格式2：匹配 "30*20*20cm*2" 格式（3个尺寸数字，最后的*2是件数）
-            const format2WithSuffixRegex = /(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*(mm|cm|m|MM|CM|M)?\s*[*xX×]\s*(\d+)/i;
-            const format2WithSuffixMatch = weightRemovedLine.match(format2WithSuffixRegex);
-            
-            if (format2WithSuffixMatch) {
-                sizeValues = [format2WithSuffixMatch[1], format2WithSuffixMatch[2], format2WithSuffixMatch[3]];
-                multiple = parseInt(format2WithSuffixMatch[5]) || 1;
-                
-                if (format2WithSuffixMatch[4]) {
-                    unitType = format2WithSuffixMatch[4].toLowerCase();
-                }
-                
-                return {
-                    originalLine: line.trim(),
-                    pureSizeLine: weightRemovedLine,
-                    sizeValues: sizeValues,
-                    unitType: unitType,
-                    multiple: multiple,
-                    format: "format2_suffix"
-                };
-            }
-            
-            // 格式2：匹配 "30*20*20cm" 格式（3个尺寸数字，没有件数后缀，默认1件）
-            const format2NoSuffixRegex = /(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*(mm|cm|m|MM|CM|M)?/i;
-            const format2NoSuffixMatch = weightRemovedLine.match(format2NoSuffixRegex);
-            
-            if (format2NoSuffixMatch) {
-                sizeValues = [format2NoSuffixMatch[1], format2NoSuffixMatch[2], format2NoSuffixMatch[3]];
-                multiple = 1;
-                
-                if (format2NoSuffixMatch[4]) {
-                    unitType = format2NoSuffixMatch[4].toLowerCase();
-                }
-                
-                return {
-                    originalLine: line.trim(),
-                    pureSizeLine: weightRemovedLine,
-                    sizeValues: sizeValues,
-                    unitType: unitType,
-                    multiple: multiple,
-                    format: "format2_no_suffix"
-                };
-            }
-            
-            // 如果没有匹配到任何格式，尝试兜底方案
-            const fallbackResult = fallbackParseSizeLine(line);
-            if (fallbackResult.sizeValues) {
-                return fallbackResult;
-            }
-            
-            // 完全无法识别
-            return {
-                originalLine: line.trim(),
-                pureSizeLine: weightRemovedLine,
-                sizeValues: null,
-                unitType: "cm",
-                multiple: 1,
-                format: "unknown"
-            };
+    // 解析尺寸行
+    function parseSizeLine(line) {
+        const preprocessed = preprocessSizeLine(line);
+        const weightRemovedLine = preprocessed.replace(/(\d+\.?\d*)\s*(?:kg|kgs|千克|公斤)/gi, '').trim();
+        let multiple = 1;
+        let sizeValues = null;
+        let unitType = "cm";
+
+        const format1Regex = /^(\d+)\s*[*xX×]\s*(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*(mm|cm|m|MM|CM|M)?/i;
+        const format1Match = weightRemovedLine.match(format1Regex);
+        if (format1Match) {
+            multiple = parseInt(format1Match[1]) || 1;
+            sizeValues = [format1Match[2], format1Match[3], format1Match[4]];
+            if (format1Match[5]) unitType = format1Match[5].toLowerCase();
+            return { originalLine: line.trim(), pureSizeLine: weightRemovedLine, sizeValues: sizeValues, unitType: unitType, multiple: multiple, format: "format1" };
         }
 
-        // 清理尺寸行，支持两种格式，生成标准尺寸键（现在也调用预处理了）
-        function cleanSizeLine(line) {
-            // 关键修复：先调用预处理，转换格式
-            const preprocessed = preprocessSizeLine(line);
-            
-            // 先移除重量信息
-            const lineWithoutWeight = preprocessed.replace(/(\d+\.?\d*)\s*(?:kg|kgs|千克|公斤)/gi, '').trim();
-            
-            let cleanLine = "";
-            let sizeKey = "";
-            let multiple = 1;
-            
-            // 先尝试匹配格式1：2*30*20*20cm
-            const format1Regex = /^(\d+)\s*[*xX×]\s*(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*(mm|cm|m|MM|CM|M)?/i;
-            const format1Match = lineWithoutWeight.match(format1Regex);
-            
-            if (format1Match) {
-                multiple = parseInt(format1Match[1]) || 1;
-                const dim1 = format1Match[2];
-                const dim2 = format1Match[3];
-                const dim3 = format1Match[4];
-                let unit = "cm";
-                
-                if (format1Match[5]) {
-                    unit = format1Match[5].toLowerCase();
-                }
-                
-                sizeKey = `${dim1}*${dim2}*${dim3}${unit}`;
-                cleanLine = `${dim1}*${dim2}*${dim3}${unit}`;
-                if (multiple > 1) {
-                    cleanLine += `*${multiple}`;
-                }
-                
-                return { cleanLine, sizeKey, multiple };
-            }
-            
-            // 尝试匹配格式2：30*20*20cm*2 或 30*20*20cm
-            const format2WithSuffixRegex = /(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*(mm|cm|m|MM|CM|M)?\s*[*xX×]\s*(\d+)/i;
-            const format2WithSuffixMatch = lineWithoutWeight.match(format2WithSuffixRegex);
-            
-            if (format2WithSuffixMatch) {
-                const dim1 = format2WithSuffixMatch[1];
-                const dim2 = format2WithSuffixMatch[2];
-                const dim3 = format2WithSuffixMatch[3];
-                multiple = parseInt(format2WithSuffixMatch[5]) || 1;
-                let unit = "cm";
-                
-                if (format2WithSuffixMatch[4]) {
-                    unit = format2WithSuffixMatch[4].toLowerCase();
-                }
-                
-                sizeKey = `${dim1}*${dim2}*${dim3}${unit}`;
-                cleanLine = `${dim1}*${dim2}*${dim3}${unit}`;
-                if (multiple > 1) {
-                    cleanLine += `*${multiple}`;
-                }
-                
-                return { cleanLine, sizeKey, multiple };
-            }
-            
-            // 匹配格式2无后缀：30*20*20cm
-            const format2NoSuffixRegex = /(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*(mm|cm|m|MM|CM|M)?/i;
-            const format2NoSuffixMatch = lineWithoutWeight.match(format2NoSuffixRegex);
-            
-            if (format2NoSuffixMatch) {
-                const dim1 = format2NoSuffixMatch[1];
-                const dim2 = format2NoSuffixMatch[2];
-                const dim3 = format2NoSuffixMatch[3];
-                let unit = "cm";
-                
-                if (format2NoSuffixMatch[4]) {
-                    unit = format2NoSuffixMatch[4].toLowerCase();
-                }
-                
-                sizeKey = `${dim1}*${dim2}*${dim3}${unit}`;
-                cleanLine = `${dim1}*${dim2}*${dim3}${unit}`;
-                
-                return { cleanLine, sizeKey, multiple: 1 };
-            }
-            
-            // 如果没有匹配到任何格式，返回原始行（移除重量后）
-            sizeKey = lineWithoutWeight;
-            cleanLine = lineWithoutWeight;
+        const format2WithSuffixRegex = /(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*(mm|cm|m|MM|CM|M)?\s*[*xX×]\s*(\d+)/i;
+        const format2WithSuffixMatch = weightRemovedLine.match(format2WithSuffixRegex);
+        if (format2WithSuffixMatch) {
+            sizeValues = [format2WithSuffixMatch[1], format2WithSuffixMatch[2], format2WithSuffixMatch[3]];
+            multiple = parseInt(format2WithSuffixMatch[5]) || 1;
+            if (format2WithSuffixMatch[4]) unitType = format2WithSuffixMatch[4].toLowerCase();
+            return { originalLine: line.trim(), pureSizeLine: weightRemovedLine, sizeValues: sizeValues, unitType: unitType, multiple: multiple, format: "format2_suffix" };
+        }
+
+        const format2NoSuffixRegex = /(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*(mm|cm|m|MM|CM|M)?/i;
+        const format2NoSuffixMatch = weightRemovedLine.match(format2NoSuffixRegex);
+        if (format2NoSuffixMatch) {
+            sizeValues = [format2NoSuffixMatch[1], format2NoSuffixMatch[2], format2NoSuffixMatch[3]];
+            multiple = 1;
+            if (format2NoSuffixMatch[4]) unitType = format2NoSuffixMatch[4].toLowerCase();
+            return { originalLine: line.trim(), pureSizeLine: weightRemovedLine, sizeValues: sizeValues, unitType: unitType, multiple: multiple, format: "format2_no_suffix" };
+        }
+
+        const fallbackResult = fallbackParseSizeLine(line);
+        if (fallbackResult.sizeValues) return fallbackResult;
+
+        return { originalLine: line.trim(), pureSizeLine: weightRemovedLine, sizeValues: null, unitType: "cm", multiple: 1, format: "unknown" };
+    }
+
+    // 清理尺寸行
+    function cleanSizeLine(line) {
+        const preprocessed = preprocessSizeLine(line);
+        const lineWithoutWeight = preprocessed.replace(/(\d+\.?\d*)\s*(?:kg|kgs|千克|公斤)/gi, '').trim();
+        let cleanLine = "";
+        let sizeKey = "";
+        let multiple = 1;
+
+        const format1Regex = /^(\d+)\s*[*xX×]\s*(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*(mm|cm|m|MM|CM|M)?/i;
+        const format1Match = lineWithoutWeight.match(format1Regex);
+        if (format1Match) {
+            multiple = parseInt(format1Match[1]) || 1;
+            const dim1 = format1Match[2];
+            const dim2 = format1Match[3];
+            const dim3 = format1Match[4];
+            let unit = "cm";
+            if (format1Match[5]) unit = format1Match[5].toLowerCase();
+            sizeKey = `${dim1}*${dim2}*${dim3}${unit}`;
+            cleanLine = `${dim1}*${dim2}*${dim3}${unit}`;
+            if (multiple > 1) cleanLine += `*${multiple}`;
+            return { cleanLine, sizeKey, multiple };
+        }
+
+        const format2WithSuffixRegex = /(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*(mm|cm|m|MM|CM|M)?\s*[*xX×]\s*(\d+)/i;
+        const format2WithSuffixMatch = lineWithoutWeight.match(format2WithSuffixRegex);
+        if (format2WithSuffixMatch) {
+            const dim1 = format2WithSuffixMatch[1];
+            const dim2 = format2WithSuffixMatch[2];
+            const dim3 = format2WithSuffixMatch[3];
+            multiple = parseInt(format2WithSuffixMatch[5]) || 1;
+            let unit = "cm";
+            if (format2WithSuffixMatch[4]) unit = format2WithSuffixMatch[4].toLowerCase();
+            sizeKey = `${dim1}*${dim2}*${dim3}${unit}`;
+            cleanLine = `${dim1}*${dim2}*${dim3}${unit}`;
+            if (multiple > 1) cleanLine += `*${multiple}`;
+            return { cleanLine, sizeKey, multiple };
+        }
+
+        const format2NoSuffixRegex = /(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*[*xX×]\s*(\d+\.?\d*)\s*(mm|cm|m|MM|CM|M)?/i;
+        const format2NoSuffixMatch = lineWithoutWeight.match(format2NoSuffixRegex);
+        if (format2NoSuffixMatch) {
+            const dim1 = format2NoSuffixMatch[1];
+            const dim2 = format2NoSuffixMatch[2];
+            const dim3 = format2NoSuffixMatch[3];
+            let unit = "cm";
+            if (format2NoSuffixMatch[4]) unit = format2NoSuffixMatch[4].toLowerCase();
+            sizeKey = `${dim1}*${dim2}*${dim3}${unit}`;
+            cleanLine = `${dim1}*${dim2}*${dim3}${unit}`;
             return { cleanLine, sizeKey, multiple: 1 };
         }
 
-        // 体积单位换算核心函数
-        function calculateSizeToCBM(sizeValues, unitType) {
-            if (!sizeValues) return 0;
-            
-            let l = parseFloat(sizeValues[0]);
-            let w = parseFloat(sizeValues[1]);
-            let h = parseFloat(sizeValues[2]);
-            
-            // 根据单位转换为米（因为CBM是立方米）
-            switch (unitType.toLowerCase()) {
-                case "mm":
-                    l = l / 1000;
-                    w = w / 1000;
-                    h = h / 1000;
-                    break;
-                case "cm":
-                    l = l / 100;
-                    w = w / 100;
-                    h = h / 100;
-                    break;
-                case "m":
-                default:
-                    break;
-            }
-            
-            const volumeM3 = l * w * h;
-            return volumeM3;
+        sizeKey = lineWithoutWeight;
+        cleanLine = lineWithoutWeight;
+        return { cleanLine, sizeKey, multiple: 1 };
+    }
+
+    // 体积单位换算
+    function calculateSizeToCBM(sizeValues, unitType) {
+        if (!sizeValues) return 0;
+        let l = parseFloat(sizeValues[0]);
+        let w = parseFloat(sizeValues[1]);
+        let h = parseFloat(sizeValues[2]);
+        switch (unitType.toLowerCase()) {
+            case "mm": l = l / 1000; w = w / 1000; h = h / 1000; break;
+            case "cm": l = l / 100; w = w / 100; h = h / 100; break;
+            default: break;
+        }
+        return l * w * h;
+    }
+
+    // 快捷填充机场代码
+    function fillAirport(airportCode) {
+        const inputElement = document.getElementById('input');
+        inputElement.value = `TO${airportCode}\n`;
+        localStorage.setItem('cargoConverter_draft', inputElement.value);
+        inputElement.focus();
+        convert();
+    }
+
+    // 实时转换函数
+    function convert() {
+        const text = document.getElementById('input').value.trim();
+        const resultElement = document.getElementById('result');
+
+        if (!text) {
+            resultElement.innerHTML = '<span class="result-placeholder">输入数据后会自动转换...</span>';
+            return;
         }
 
-        // 快捷填充机场代码的函数
-        function fillAirport(airportCode) {
-            const inputElement = document.getElementById('input');
-            inputElement.value = `TO${airportCode}\n`;
-            inputElement.focus();
-            convert();
+        let output = "";
+        let cleanedText = text.replace(/(\d+),(\d+)/g, '$1.$2');
+        cleanedText = cleanedText.replace(/,/g, '');
+        const lines = cleanedText.split('\n').map(line => line.trim()).filter(line => line);
+
+        // 1. 提取机场代码
+        let airport = "???";
+        const airportRegex = /(?:to|TO|POD:|AOL:|Delivery:|Destination:|飞|目的地)\s*([A-Z]{3})\b/i;
+        for (let line of lines) {
+            const match = line.match(airportRegex);
+            if (match) { airport = match[1]; break; }
         }
 
-        // 实时转换函数 - 在输出时合并相同尺寸
-        function convert() {
-            const text = document.getElementById('input').value.trim();
-            const resultElement = document.getElementById('result');
-            
-            if (!text) {
-                resultElement.innerHTML = '<span class="result-placeholder">输入数据后会自动转换...</span>';
-                return;
-            }
-            
-            let output = "";
-            
-            // 优化小数点替换 - 匹配"数字,数字"格式的逗号（欧洲小数点）
-            let cleanedText = text.replace(/(\d+),(\d+)/g, '$1.$2');
-            cleanedText = cleanedText.replace(/,/g, '');
-            
-            // 按行拆分文本，过滤空行
-            const lines = cleanedText.split('\n').map(line => line.trim()).filter(line => line);
-            
-            // 1. 提取机场代码
-            let airport = "???";
-            const airportRegex = /(?:to|TO|POD:|AOL:|Delivery:|Destination:|飞|目的地)\s*([A-Z]{3})\b/i;
-            for (let line of lines) {
-                const match = line.match(airportRegex);
-                if (match) {
-                    airport = match[1];
-                    break;
-                }
-            }
+        // 2. 提取重量（新逻辑：优先总重 → 单件×件数 → 累加所有）
+        let totalWeight = null;
+        let singleWeight = null;
+        let casesForWeight = 0;
+        let allWeights = [];  // 用于累加所有普通重量
 
-            // 2. 提取重量
-            let totalWeight = null;
-            let singleWeight = null;
-            
+        // 2.1 先找"总重"关键字
+        const totalWeightKeywordRegex = /(?:total|TOTAL|总重|合计)\s*(\d+\.?\d*)\s*(?:kg|kgs|千克|公斤)/i;
+        for (let line of lines) {
+            const totalKeywordMatch = line.match(totalWeightKeywordRegex);
+            if (totalKeywordMatch) {
+                totalWeight = parseFloat(totalKeywordMatch[1]);
+                break;  // 找到总重就直接用，不再继续
+            }
+        }
+
+        // 2.2 如果没有总重，找单件重量格式
+        if (totalWeight === null) {
             const singleWeightRegex = /(\d+\.?\d*)\s*(?:kg|kgs|千克|公斤)\s*\/?\s*(?:ctn|件|箱)/i;
-            const totalWeightRegex = /(\d+\.?\d*)\s*(?:kg|kgs|千克|公斤)/i;
-            
             for (let line of lines) {
                 const singleMatch = line.match(singleWeightRegex);
-                if (singleMatch && !singleWeight) {
+                if (singleMatch && singleWeight === null) {
                     singleWeight = parseFloat(singleMatch[1]);
-                    continue;
-                }
-                
-                if (!totalWeight) {
-                    const totalMatch = line.match(totalWeightRegex);
-                    if (totalMatch) {
-                        totalWeight = parseFloat(totalMatch[1]);
+                    // 同时查找件数
+                    const casesRegexForWeight = /(\d+)\s*(?:crts?|ctns?|plts?|pkgs?|boxes?|box?|cases?|件|箱|pallets?)/i;
+                    for (let l of lines) {
+                        const casesMatch = l.match(casesRegexForWeight);
+                        if (casesMatch) {
+                            casesForWeight = parseInt(casesMatch[1]);
+                            break;
+                        }
                     }
-                }
-            }
-
-            // 3. 提取件数
-            let cases = 0;
-            const casesRegex = /(\d+)\s*(?:crts?|ctns?|plts?|pkgs?|boxes?|box?|cases?|件|箱|pallets?|tents?|x\s*Pallets?|xPallets?|carts?|karts?|PALETY?|Cartons?|packages?|Crates?|crate?|pcs|Palls?|pal?|colis?|collis?|rolls?|pieces?)/i;
-            const totalCasesRegex = /(?:total|TOTAL|总计|合计|一共|共)\s*(\d+)\s*(?:crts?|ctns?|plts?|pkgs?|boxes?|cases?|件|箱)/i;
-            
-            for (let line of lines) {
-                const totalMatch = line.match(totalCasesRegex);
-                if (totalMatch) {
-                    cases = parseInt(totalMatch[1]);
-                    break;
-                }
-                
-                const match = line.match(casesRegex);
-                if (match && !cases) {
-                    cases = parseInt(match[1]);
-                }
-            }
-
-            // 4. 直接识别CBM的逻辑
-            let directCBM = 0;
-            const cbmRegex = /(\d+\.?\d*)\s*(?:cbm|CBM|立方米|方)/i;
-            for (let line of lines) {
-                const match = line.match(cbmRegex);
-                if (match) {
-                    directCBM = parseFloat(match[1]);
                     break;
                 }
             }
 
-            // 5. 解析尺寸行
-            let sizeLinesInfo = [];
-            let allSizeLines = [];
-            
+            // 如果有单件重量和件数，计算总重
+            if (singleWeight !== null && casesForWeight > 0) {
+                totalWeight = singleWeight * casesForWeight;
+            }
+        }
+
+        // 2.3 如果没有总重也没有单件×件数，累加所有普通重量
+        if (totalWeight === null && singleWeight === null) {
+            const allWeightRegex = /(\d+\.?\d*)\s*(?:kg|kgs|千克|公斤)/gi;
+            let weightMatch;
             for (let line of lines) {
-                const sizePattern1 = /^\d+\s*[*xX×]\s*\d+.*[*xX×].*[*xX×].*\d+/i;
-                const sizePattern2 = /\d+.*[*xX×].*[*xX×].*\d+/i;
-                
-                if (sizePattern1.test(line) || sizePattern2.test(line)) {
-                    const sizeInfo = parseSizeLine(line);
-                    if (sizeInfo.sizeValues) {
-                        sizeLinesInfo.push(sizeInfo);
-                        allSizeLines.push(sizeInfo.originalLine);
-                    }
+                // 重置正则的 lastIndex
+                const weightRegex = /(\d+\.?\d*)\s*(?:kg|kgs|千克|公斤)/gi;
+                while ((weightMatch = weightRegex.exec(line)) !== null) {
+                    allWeights.push(parseFloat(weightMatch[1]));
                 }
             }
+            if (allWeights.length > 0) {
+                totalWeight = allWeights.reduce((sum, w) => sum + w, 0);
+            }
+        }
 
-            // 6. 计算总件数和总体积
-            let totalCasesFromSizes = 0;
-            let totalVolumeFromSizes = 0;
-            
-            for (const sizeInfo of sizeLinesInfo) {
-                if (sizeInfo.sizeValues) {
-                    const singleCBM = calculateSizeToCBM(sizeInfo.sizeValues, sizeInfo.unitType);
-                    const lineCases = sizeInfo.multiple || 1;
-                    totalVolumeFromSizes += singleCBM * lineCases;
-                    totalCasesFromSizes += lineCases;
-                }
-            }
-            
-            // 7. 确定最终件数
-            let finalCases = 0;
-            if (cases > 0) {
-                finalCases = cases;
-            } else if (totalCasesFromSizes > 0) {
-                finalCases = totalCasesFromSizes;
-            }
-            
-            if (finalCases === 0) finalCases = 1;
-            
-            // 8. 计算总CBM
-            let totalCBM = directCBM;
-            
-            if (directCBM > 0) {
-                totalCBM = directCBM;
-            } else if (totalVolumeFromSizes > 0) {
-                totalCBM = totalVolumeFromSizes;
-            } else if (cases > 0 && sizeLinesInfo.length > 0) {
-                const firstSizeInfo = sizeLinesInfo[0];
-                if (firstSizeInfo.sizeValues) {
-                    const singleCBM = calculateSizeToCBM(firstSizeInfo.sizeValues, firstSizeInfo.unitType);
-                    totalCBM = singleCBM * cases;
-                }
-            }
-            
-            // 重量计算逻辑
-            let finalWeight = null;
-            if (totalWeight) {
-                finalWeight = totalWeight;
-            } else if (singleWeight) {
-                finalWeight = singleWeight * finalCases;
-            }
+        // 3. 提取件数
+        let cases = 0;
+        const casesRegex = /(\d+)\s*(?:crts?|ctns?|plts?|pkgs?|boxes?|box?|cases?|件|箱|pallets?|tents?|x\s*Pallets?|xPallets?|carts?|karts?|PALETY?|Cartons?|packages?|Crates?|crate?|pcs|Palls?|pal?|colis?|collis?|rolls?|pieces?)/i;
+        const totalCasesRegex = /(?:total|TOTAL|总计|合计|一共|共)\s*(\d+)\s*(?:crts?|ctns?|plts?|pkgs?|boxes?|cases?|件|箱)/i;
+        for (let line of lines) {
+            const totalMatch = line.match(totalCasesRegex);
+            if (totalMatch) { cases = parseInt(totalMatch[1]); break; }
+            const match = line.match(casesRegex);
+            if (match && !cases) cases = parseInt(match[1]);
+        }
 
-            // 9. 计算最终CBM
-            const finalCBM = parseFloat(totalCBM).toFixed(2);
-            const densityRatio = finalWeight && parseFloat(finalCBM) > 0 ? Math.round(finalWeight / parseFloat(finalCBM)) : "";
+        // 4. 直接识别CBM
+        let directCBM = 0;
+        const cbmRegex = /(\d+\.?\d*)\s*(?:cbm|CBM|立方米|方)/i;
+        for (let line of lines) {
+            const match = line.match(cbmRegex);
+            if (match) { directCBM = parseFloat(match[1]); break; }
+        }
 
-            // 10. 拼接输出
-            if (finalWeight) {
-                output += `${airport} / ${finalCases}pcs / ${finalWeight.toFixed(1)}kgs / ${finalCBM}cbm`;
-            } else {
-                output += `${airport} / ${finalCases}pcs / ?kgs / ${finalCBM}cbm`;
+        // 5. 解析尺寸行
+        let sizeLinesInfo = [];
+        for (let line of lines) {
+            const sizePattern1 = /^\d+\s*[*xX×]\s*\d+.*[*xX×].*[*xX×].*\d+/i;
+            const sizePattern2 = /\d+.*[*xX×].*[*xX×].*\d+/i;
+            if (sizePattern1.test(line) || sizePattern2.test(line)) {
+                const sizeInfo = parseSizeLine(line);
+                if (sizeInfo.sizeValues) sizeLinesInfo.push(sizeInfo);
             }
-            
-            // 11. 合并相同尺寸（现在cleanSizeLine已经支持预处理了）
-            let mergedSizes = new Map();
-            
-            for (let line of lines) {
-                const sizePattern1 = /^\d+\s*[*xX×]\s*\d+.*[*xX×].*[*xX×].*\d+/i;
-                const sizePattern2 = /\d+.*[*xX×].*[*xX×].*\d+/i;
-                
-                if (sizePattern1.test(line) || sizePattern2.test(line)) {
-                    const cleanedData = cleanSizeLine(line);
-                    
-                    if (cleanedData.sizeKey) {
-                        const baseSizeMatch = cleanedData.sizeKey.match(/^([^*]+(?:\*[^*]+){2}[a-z]*)/i);
-                        if (baseSizeMatch) {
-                            const baseSize = baseSizeMatch[0];
-                            const currentMultiple = cleanedData.multiple || 1;
-                            
-                            if (mergedSizes.has(baseSize)) {
-                                const existing = mergedSizes.get(baseSize);
-                                existing.totalMultiple += currentMultiple;
-                                mergedSizes.set(baseSize, existing);
-                            } else {
-                                mergedSizes.set(baseSize, {
-                                    baseSize: baseSize,
-                                    totalMultiple: currentMultiple
-                                });
-                            }
+        }
+
+        // 6. 计算总件数和总体积
+        let totalCasesFromSizes = 0;
+        let totalVolumeFromSizes = 0;
+        for (const sizeInfo of sizeLinesInfo) {
+            if (sizeInfo.sizeValues) {
+                const singleCBM = calculateSizeToCBM(sizeInfo.sizeValues, sizeInfo.unitType);
+                const lineCases = sizeInfo.multiple || 1;
+                totalVolumeFromSizes += singleCBM * lineCases;
+                totalCasesFromSizes += lineCases;
+            }
+        }
+
+        // 7. 确定最终件数
+        let finalCases = 0;
+        if (cases > 0) finalCases = cases;
+        else if (totalCasesFromSizes > 0) finalCases = totalCasesFromSizes;
+        if (finalCases === 0) finalCases = 1;
+
+        // 8. 计算总CBM
+        let totalCBM = directCBM;
+        if (directCBM > 0) totalCBM = directCBM;
+        else if (totalVolumeFromSizes > 0) totalCBM = totalVolumeFromSizes;
+        else if (cases > 0 && sizeLinesInfo.length > 0) {
+            const firstSizeInfo = sizeLinesInfo[0];
+            if (firstSizeInfo.sizeValues) {
+                const singleCBM = calculateSizeToCBM(firstSizeInfo.sizeValues, firstSizeInfo.unitType);
+                totalCBM = singleCBM * cases;
+            }
+        }
+
+        // 重量计算
+        let finalWeight = null;
+        if (totalWeight) finalWeight = totalWeight;
+        else if (singleWeight) finalWeight = singleWeight * finalCases;
+
+        const finalCBM = parseFloat(totalCBM).toFixed(2);
+        const densityRatio = finalWeight && parseFloat(finalCBM) > 0 ? Math.round(finalWeight / parseFloat(finalCBM)) : "";
+
+        // 10. 拼接输出
+        if (finalWeight) output += `${airport} / ${finalCases}pcs / ${finalWeight.toFixed(1)}kgs / ${finalCBM}cbm`;
+        else output += `${airport} / ${finalCases}pcs / ?kgs / ${finalCBM}cbm`;
+
+        // 11. 合并相同尺寸
+        let mergedSizes = new Map();
+        for (let line of lines) {
+            const sizePattern1 = /^\d+\s*[*xX×]\s*\d+.*[*xX×].*[*xX×].*\d+/i;
+            const sizePattern2 = /\d+.*[*xX×].*[*xX×].*\d+/i;
+            if (sizePattern1.test(line) || sizePattern2.test(line)) {
+                const cleanedData = cleanSizeLine(line);
+                if (cleanedData.sizeKey) {
+                    const baseSizeMatch = cleanedData.sizeKey.match(/^([^*]+(?:\*[^*]+){2}[a-z]*)/i);
+                    if (baseSizeMatch) {
+                        const baseSize = baseSizeMatch[0];
+                        const currentMultiple = cleanedData.multiple || 1;
+                        if (mergedSizes.has(baseSize)) {
+                            const existing = mergedSizes.get(baseSize);
+                            existing.totalMultiple += currentMultiple;
+                            mergedSizes.set(baseSize, existing);
+                        } else {
+                            mergedSizes.set(baseSize, { baseSize: baseSize, totalMultiple: currentMultiple });
                         }
                     }
                 }
             }
-            
-            // 12. 生成合并后的尺寸行
-            let allCleanSizeLines = [];
-            for (const [baseSize, data] of mergedSizes) {
-                let cleanLine = baseSize;
-                if (data.totalMultiple > 1) {
-                    cleanLine += `*${data.totalMultiple}`;
-                }
-                allCleanSizeLines.push(cleanLine);
-            }
-            
-            // 添加尺寸行到输出
-            if (allCleanSizeLines.length > 0) {
-                output += `\n${allCleanSizeLines.join('，')}`;
-            }
-            
-            // 添加密度比
-            if (densityRatio) {
-                output += `\n1:${densityRatio}`;
-            }
-            
-            // 识别失败提示
-            if (!finalWeight && directCBM === 0 && sizeLinesInfo.length === 0) {
-                output = "数据识别失败，请检查是否包含：\n- 重量（如93.5kg或13.5kg/件）\n- 尺寸（如29*17*19CM）或CBM（如0.75cbm）\n- 目的地（如to FRA）\n- 件数（如total 80 CTN）\n\n支持的单位：mm, cm, m\n支持格式：30*20*20cm 或 1,23 m x 0,35 m x 0,26 m 或 1,38 m 0,35 m 0,34 m";
-            }
-            
-            resultElement.textContent = output;
         }
 
-        // 一键复制函数
-        function copyResult() {
-            const resultElement = document.getElementById('result');
-            const copyBtn = document.getElementById('copyBtn');
-            
-            const textToCopy = resultElement.textContent;
-            
-            if (textToCopy.includes("输入数据后会自动转换") || textToCopy.includes("数据识别失败")) {
-                return;
-            }
-            
-            navigator.clipboard.writeText(textToCopy)
-                .then(() => {
-                    const originalText = copyBtn.textContent;
-                    copyBtn.textContent = "已复制 ✓";
-                    copyBtn.classList.add('copied');
-                    
-                    setTimeout(() => {
-                        copyBtn.textContent = originalText;
-                        copyBtn.classList.remove('copied');
-                    }, 2000);
-                })
-                .catch(err => {
-                    const textArea = document.createElement('textarea');
-                    textArea.value = textToCopy;
-                    document.body.appendChild(textArea);
-                    textArea.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(textArea);
-                    
-                    const originalText = copyBtn.textContent;
-                    copyBtn.textContent = "已复制 ✓";
-                    copyBtn.classList.add('copied');
-                    
-                    setTimeout(() => {
-                        copyBtn.textContent = originalText;
-                        copyBtn.classList.remove('copied');
-                    }, 2000);
-                });
+        // 12. 生成合并后的尺寸行
+        let allCleanSizeLines = [];
+        for (const [baseSize, data] of mergedSizes) {
+            let cleanLine = baseSize;
+            if (data.totalMultiple > 1) cleanLine += `*${data.totalMultiple}`;
+            allCleanSizeLines.push(cleanLine);
         }
 
-        // 实时转换监听
-        document.addEventListener('DOMContentLoaded', function() {
-            const inputElement = document.getElementById('input');
-            
-            inputElement.addEventListener('input', convert);
-            inputElement.addEventListener('paste', function() {
-                setTimeout(convert, 10);
-            });
-            
+        if (allCleanSizeLines.length > 0) output += `\n${allCleanSizeLines.join('，')}`;
+        if (densityRatio) output += `\n1:${densityRatio}`;
+
+        if (!finalWeight && directCBM === 0 && sizeLinesInfo.length === 0) {
+            output = "数据识别失败，请检查是否包含：\n- 重量（如93.5kg或13.5kg/件）\n- 尺寸（如29*17*19CM）或CBM（如0.75cbm）\n- 目的地（如to FRA）\n- 件数（如total 80 CTN）\n\n支持的单位：mm, cm, m\n支持格式：30*20*20cm 或 1,23 m x 0,35 m x 0,26 m 或 1,38 m 0,35 m 0,34 m";
+        }
+
+        resultElement.textContent = output;
+    }
+
+    // 一键复制函数
+    function copyResult() {
+        const resultElement = document.getElementById('result');
+        const copyBtn = document.getElementById('copyBtn');
+        const textToCopy = resultElement.textContent;
+
+        if (textToCopy.includes("输入数据后会自动转换") || textToCopy.includes("数据识别失败")) return;
+
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            const originalText = copyBtn.textContent;
+            copyBtn.textContent = "已复制 ✓";
+            copyBtn.classList.add('copied');
+            setTimeout(() => { copyBtn.textContent = originalText; copyBtn.classList.remove('copied'); }, 2000);
+        }).catch(() => {
+            const textArea = document.createElement('textarea');
+            textArea.value = textToCopy;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            const originalText = copyBtn.textContent;
+            copyBtn.textContent = "已复制 ✓";
+            copyBtn.classList.add('copied');
+            setTimeout(() => { copyBtn.textContent = originalText; copyBtn.classList.remove('copied'); }, 2000);
+        });
+    }
+
+    // 清除草稿功能
+    function clearDraft() {
+    const inputElement = document.getElementById('input');
+    inputElement.value = '';
+    localStorage.removeItem('cargoConverter_draft');
+    convert();
+}
+
+    // 实时转换监听 + 自动保存草稿
+    document.addEventListener('DOMContentLoaded', function() {
+        const inputElement = document.getElementById('input');
+
+        // 恢复上次保存的草稿
+        const savedDraft = localStorage.getItem('cargoConverter_draft');
+        if (savedDraft) {
+            inputElement.value = savedDraft;
+            convert();
+        }
+
+        // 监听输入，自动保存
+        inputElement.addEventListener('input', function() {
+            localStorage.setItem('cargoConverter_draft', inputElement.value);
             convert();
         });
-    </script>
+
+        inputElement.addEventListener('paste', function() {
+            setTimeout(() => {
+                localStorage.setItem('cargoConverter_draft', inputElement.value);
+                convert();
+            }, 10);
+        });
+
+        convert();
+    });
+</script>
 </body>
 </html>
